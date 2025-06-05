@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	addr = ":8080"
 	host = "http://localhost:8080/"
 )
 
@@ -57,10 +56,11 @@ func handleShorten(w http.ResponseWriter, r *http.Request) {
 
 // GET /{id}
 func handleGetUrl(w http.ResponseWriter, r *http.Request, id string) {
-	//if r.Method != http.MethodGet || r.Header.Get("Content-Type") != "text/plain" {
-	//	http.Error(w, "Bad Request", http.StatusBadRequest)
-	//	return
-	//}
+	if r.Method != http.MethodGet || r.Header.Get("Content-Type") != "text/plain" {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
 	fmt.Println("Имя:", id)
 
 	url, success := urlStore[id]
@@ -71,7 +71,7 @@ func handleGetUrl(w http.ResponseWriter, r *http.Request, id string) {
 	}
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusTemporaryRedirect)
-	w.Write([]byte(url))
+	_, _ = w.Write([]byte(url))
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
