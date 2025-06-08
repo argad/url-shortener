@@ -10,17 +10,16 @@ import (
 
 // Config structure for storing configuration
 type Config struct {
-	ServerAddress string // Address for starting the HTTP server
-	BaseShortURL  string // Base address for the resulting shortened URL
+	ServerAddress string `env:"SERVER_ADDRESS"`
+	BaseShortURL  string `env:"BASE_URL"`
 }
 
 // InitConfig function to initialize the configuration using flags
 func InitConfig() (*Config, error) {
-	// Define flags
-	cfg := Config{
-		ServerAddress: "localhost:8080",
-		BaseShortURL:  "http://localhost:8080",
-	}
+	var cfg Config
+
+	cfg.ServerAddress = ":8080"
+	cfg.BaseShortURL = "http://localhost:8080"
 
 	if err := env.Parse(&cfg); err != nil {
 		return nil, fmt.Errorf("error reading environment variables: %w", err)
@@ -32,11 +31,11 @@ func InitConfig() (*Config, error) {
 	// Parse the flags
 	flag.Parse()
 
-	if !isEnvSet("SERVER_ADDRESS") && *serverAddress != cfg.ServerAddress {
+	if !isEnvSet("SERVER_ADDRESS") {
 		cfg.ServerAddress = *serverAddress
 	}
 
-	if !isEnvSet("BASE_URL") && *baseShortURL != cfg.BaseShortURL {
+	if !isEnvSet("BASE_URL") {
 		cfg.BaseShortURL = *baseShortURL
 	}
 
@@ -44,13 +43,10 @@ func InitConfig() (*Config, error) {
 		return nil, fmt.Errorf("the base address for the shortened URL cannot be empty")
 	}
 
-	address := cfg.ServerAddress
-	if strings.HasPrefix(address, "localhost:") {
-		address = address[len("localhost:"):]
-		address = ":" + address
+	// Нормализуем адрес сервера
+	if cfg.ServerAddress != "" && !strings.Contains(cfg.ServerAddress, ":") {
+		cfg.ServerAddress = ":" + cfg.ServerAddress
 	}
-
-	cfg.ServerAddress = address
 
 	return &cfg, nil
 }
