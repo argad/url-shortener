@@ -8,9 +8,9 @@ import (
 
 func main() {
 	storageInstance := storage.NewInMemoryStorage()
-	mux := server.NewServer(storageInstance)
+	srv := server.NewServer(storageInstance)
 
-	err := http.ListenAndServe(`:8080`, mux)
+	err := http.ListenAndServe(`:8080`, srv.Router)
 	if err != nil {
 		panic(err)
 	}

@@ -2,27 +2,31 @@ package server
 
 import (
 	"github.com/argad/url-shortener/cmd/shortener/storage"
-	"net/http"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
 	storage storage.Storage
-	mux     *http.ServeMux
+	Router  *chi.Mux
 }
 
 func NewServer(storageInterface storage.Storage) *Server {
 
 	s := &Server{
 		storage: storageInterface,
-		mux:     http.NewServeMux(),
+		Router:  chi.NewRouter(),
 	}
 
-	s.mux.HandleFunc("/", s.HandleRequest)
+	s.Router.Use(middleware.Logger)    //?
+	s.Router.Use(middleware.Recoverer) //?
+
+	s.routes()
 
 	return s
 }
 
-// ServeHTTP делегирует обработку запроса встроенному mux
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
+func (s *Server) routes() {
+	s.Router.Post("/", s.handleShorten)
+	s.Router.Get("/{id}", s.handleGetURL)
 }

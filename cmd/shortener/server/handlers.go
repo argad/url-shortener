@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
 	"strings"
@@ -14,7 +15,7 @@ const (
 
 func generateID() string {
 
-	//TODO: если ключ уже есть, то брать старый
+	//TODO: если ключ уже есть, то брать старый?
 	b := make([]byte, 8)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -27,7 +28,7 @@ func generateID() string {
 // POST create shortener /
 func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
-	if r.Method != http.MethodPost || !strings.HasPrefix(contentType, "text/plain") {
+	if !strings.HasPrefix(contentType, "text/plain") {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
@@ -57,24 +58,11 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /{id}
-func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request, id string) {
-	//contentType := r.Header.Get("Content-Type")
-	//if r.Method != http.MethodGet || !strings.HasPrefix(contentType, "text/plain") {
-	//	http.Error(w, "Bad Request", http.StatusBadRequest)
-	//	return
-	//}
-	//
-	//url, success := s.storage.GetUrl(id)
-	//
-	//if success != nil {
-	//	http.Error(w, "Bad Request", http.StatusBadRequest)
-	//	return
-	//}
-	//w.Header().Set("Content-Type", "text/plain")
-	//w.WriteHeader(http.StatusTemporaryRedirect)
-	//_, _ = w.Write([]byte(url))
+func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != http.MethodGet {
+	id := chi.URLParam(r, "id")
+
+	if id == "" {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
@@ -88,22 +76,4 @@ func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request, id string)
 	w.Header().Set("Location", url)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 
-}
-
-func (s *Server) HandleRequest(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-
-	if path == "/" {
-		s.handleShorten(w, r)
-		return
-	}
-
-	if strings.HasPrefix(path, "/") && len(path) > 1 {
-		variable := strings.TrimPrefix(path, "/")
-		s.handleGetURL(w, r, variable)
-		return
-	}
-
-	// Если ничего не подошло, возвращаем 404
-	http.Error(w, "Bad Request", http.StatusBadRequest)
 }
