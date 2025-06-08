@@ -3,38 +3,60 @@ package config
 import (
 	"flag"
 	"fmt"
+	"github.com/caarlos0/env/v10"
+	"os"
 	"strings"
 )
 
-// Config структура для хранения конфигурации
+// Config structure for storing configuration
 type Config struct {
-	ServerAddress string // Адрес запуска HTTP-сервера
-	BaseShortURL  string // Базовый адрес результирующего сокращённого URL
+	ServerAddress string // Address for starting the HTTP server
+	BaseShortURL  string // Base address for the resulting shortened URL
 }
 
-// InitConfig функция для инициализации конфигурации с помощью флагов
+// InitConfig function to initialize the configuration using flags
 func InitConfig() (*Config, error) {
-	// Определяем флаги
-	serverAddress := flag.String("a", "localhost:8080", "Адрес запуска HTTP-сервера (например, localhost:8888)")
-	baseShortURL := flag.String("b", "http://localhost:8080", "Базовый адрес результирующего сокращённого URL (например, http://localhost:8000/qsd54gFg)")
-
-	// Парсим флаги
-	flag.Parse()
-
-	// Проверяем корректность базового адреса URL
-	if *baseShortURL == "" {
-		return nil, fmt.Errorf("базовый адрес сокращённого URL не может быть пустым")
+	// Define flags
+	cfg := Config{
+		ServerAddress: "localhost:8080",
+		BaseShortURL:  "http://localhost:8080",
 	}
 
-	address := *serverAddress
+	if err := env.Parse(&cfg); err != nil {
+		return nil, fmt.Errorf("error reading environment variables: %w", err)
+	}
+
+	serverAddress := flag.String("a", "localhost:8080", "Address for starting the HTTP server (e.g., localhost:8888)")
+	baseShortURL := flag.String("b", "http://localhost:8080", "Base address for the resulting shortened URL (e.g., http://localhost:8000/qsd54gFg)")
+
+	// Parse the flags
+	flag.Parse()
+
+	if !isEnvSet("SERVER_ADDRESS") && *serverAddress != cfg.ServerAddress {
+		cfg.ServerAddress = *serverAddress
+	}
+
+	if !isEnvSet("BASE_URL") && *baseShortURL != cfg.BaseShortURL {
+		cfg.BaseShortURL = *baseShortURL
+	}
+
+	if cfg.BaseShortURL == "" {
+		return nil, fmt.Errorf("the base address for the shortened URL cannot be empty")
+	}
+
+	address := cfg.ServerAddress
 	if strings.HasPrefix(address, "localhost:") {
 		address = address[len("localhost:"):]
 		address = ":" + address
 	}
 
-	// Создаём и возвращаем конфигурацию
-	return &Config{
-		ServerAddress: address,
-		BaseShortURL:  *baseShortURL,
-	}, nil
+	cfg.ServerAddress = address
+
+	return &cfg, nil
+}
+
+// isEnvSet checks if an environment variable is set
+func isEnvSet(name string) bool {
+	_, exists := os.LookupEnv(name)
+	return exists
 }
