@@ -34,7 +34,7 @@ func InitConfig() (*Config, error) {
 
 	// Создаём и возвращаем конфигурацию
 	return &Config{
-		ServerAddress: *serverAddress,
+		ServerAddress: address,
 		BaseShortURL:  *baseShortURL,
 	}, nil
 }
