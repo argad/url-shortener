@@ -26,8 +26,8 @@ func InitConfig() (*Config, error) {
 		return nil, fmt.Errorf("error reading environment variables: %w", err)
 	}
 
-	serverAddress := flag.String("a", "localhost:8080", "Address for starting the HTTP server (e.g., localhost:8888)")
-	baseShortURL := flag.String("b", "http://localhost:8080", "Base address for the resulting shortened URL (e.g., http://localhost:8000/qsd54gFg)")
+	serverAddress := flag.String("a", cfg.ServerAddress, "Address for starting the HTTP server (e.g., localhost:8888)")
+	baseShortURL := flag.String("b", cfg.BaseShortURL, "Base address for the resulting shortened URL (e.g., http://localhost:8000/qsd54gFg)")
 
 	// Parse the flags
 	flag.Parse()
