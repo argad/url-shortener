@@ -26,7 +26,8 @@ func generateID() string {
 
 // POST create shortener /
 func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost || r.Header.Get("Content-Type") != "text/plain" {
+	contentType := r.Header.Get("Content-Type")
+	if r.Method != http.MethodPost || !strings.HasPrefix(contentType, "text/plain") {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
@@ -57,7 +58,8 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 
 // GET /{id}
 func (s *Server) handleGetUrl(w http.ResponseWriter, r *http.Request, id string) {
-	if r.Method != http.MethodGet || r.Header.Get("Content-Type") != "text/plain" {
+	contentType := r.Header.Get("Content-Type")
+	if r.Method != http.MethodGet || !strings.HasPrefix(contentType, "text/plain") {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
