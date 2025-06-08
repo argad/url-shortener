@@ -17,7 +17,7 @@ func main() {
 	storageInstance := storage.NewInMemoryStorage()
 	srv := server.NewServer(storageInstance, cfg.BaseShortURL)
 
-	err2 := http.ListenAndServe(`:8080`, srv.Router)
+	err2 := http.ListenAndServe(cfg.ServerAddress, srv.Router)
 	if err2 != nil {
 		panic(err2)
 	}

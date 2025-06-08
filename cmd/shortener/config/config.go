@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"fmt"
+	"strings"
 )
 
 // Config структура для хранения конфигурации
@@ -23,6 +24,12 @@ func InitConfig() (*Config, error) {
 	// Проверяем корректность базового адреса URL
 	if *baseShortURL == "" {
 		return nil, fmt.Errorf("базовый адрес сокращённого URL не может быть пустым")
+	}
+
+	address := *serverAddress
+	if strings.HasPrefix(address, "localhost:") {
+		address = address[len("localhost:"):]
+		address = ":" + address
 	}
 
 	// Создаём и возвращаем конфигурацию
