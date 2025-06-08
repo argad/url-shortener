@@ -51,7 +51,7 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL := host + urlKey
+	shortURL := s.baseURL + "/" + urlKey
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
 	_, _ = w.Write([]byte(shortURL))
@@ -60,6 +60,7 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 // GET /{id}
 func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request) {
 
+	//test
 	id := chi.URLParam(r, "id")
 
 	if id == "" {

@@ -64,8 +64,8 @@ func TestServerHandleShorten(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock storage
-			mockStorage := storage.NewInMemoryStorage()
-			server := NewServer(mockStorage)
+			mockStorage := storage.NewMockStorage()
+			server := NewServer(mockStorage, "http://localhost:8080/")
 
 			// Create test request
 			req := httptest.NewRequest(tt.method, "/", bytes.NewBufferString(tt.body))
@@ -132,12 +132,12 @@ func TestServerHandleGetURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a mock storage
-			mockStorage := storage.NewInMemoryStorage()
+			mockStorage := storage.NewMockStorage()
 
 			// Configure storage for the test
 			tt.setupStorage(mockStorage)
 
-			server := NewServer(mockStorage)
+			server := NewServer(mockStorage, "http://localhost:8080/")
 
 			// Create a test request
 			req := httptest.NewRequest(tt.method, "/"+tt.urlID, nil)
