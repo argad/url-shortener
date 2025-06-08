@@ -1,17 +1,24 @@
 package main
 
 import (
+	"github.com/argad/url-shortener/cmd/shortener/config"
 	"github.com/argad/url-shortener/cmd/shortener/server"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
+	"log"
 	"net/http"
 )
 
 func main() {
-	storageInstance := storage.NewInMemoryStorage()
-	srv := server.NewServer(storageInstance)
-
-	err := http.ListenAndServe(`:8080`, srv.Router)
+	cfg, err := config.InitConfig()
 	if err != nil {
-		panic(err)
+		log.Fatalf("Ошибка инициализации конфигурации: %v", err)
+	}
+
+	storageInstance := storage.NewInMemoryStorage()
+	srv := server.NewServer(storageInstance, cfg.BaseShortURL)
+
+	err2 := http.ListenAndServe(`:8080`, srv.Router)
+	if err2 != nil {
+		panic(err2)
 	}
 }

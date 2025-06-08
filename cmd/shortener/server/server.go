@@ -9,13 +9,15 @@ import (
 type Server struct {
 	storage storage.Storage
 	Router  *chi.Mux
+	baseURL string
 }
 
-func NewServer(storageInterface storage.Storage) *Server {
+func NewServer(storageInterface storage.Storage, baseURL string) *Server {
 
 	s := &Server{
 		storage: storageInterface,
 		Router:  chi.NewRouter(),
+		baseURL: baseURL,
 	}
 
 	s.Router.Use(middleware.Logger)    //?
