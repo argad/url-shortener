@@ -1,6 +1,6 @@
 package storage
 
 type Storage interface {
-	SaveUrl(url string, key string) (string, error)
-	GetUrl(id string) (string, error)
+	SaveURL(url string, key string) (string, error)
+	GetURL(id string) (string, error)
 }

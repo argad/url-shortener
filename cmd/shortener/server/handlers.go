@@ -44,7 +44,7 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := generateID()
-	urlKey, err := s.storage.SaveUrl(url, id)
+	urlKey, err := s.storage.SaveURL(url, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -58,21 +58,36 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 
 // GET /{id}
 func (s *Server) handleGetUrl(w http.ResponseWriter, r *http.Request, id string) {
-	contentType := r.Header.Get("Content-Type")
-	if r.Method != http.MethodGet || !strings.HasPrefix(contentType, "text/plain") {
+	//contentType := r.Header.Get("Content-Type")
+	//if r.Method != http.MethodGet || !strings.HasPrefix(contentType, "text/plain") {
+	//	http.Error(w, "Bad Request", http.StatusBadRequest)
+	//	return
+	//}
+	//
+	//url, success := s.storage.GetUrl(id)
+	//
+	//if success != nil {
+	//	http.Error(w, "Bad Request Not Found", http.StatusBadRequest)
+	//	return
+	//}
+	//w.Header().Set("Content-Type", "text/plain")
+	//w.WriteHeader(http.StatusTemporaryRedirect)
+	//_, _ = w.Write([]byte(url))
+
+	if r.Method != http.MethodGet {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
-	url, success := s.storage.GetUrl(id)
-
-	if success != nil {
+	url, err := s.storage.GetURL(id)
+	if err != nil {
 		http.Error(w, "Bad Request Not Found", http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Content-Type", "text/plain")
+
+	w.Header().Set("Location", url)
 	w.WriteHeader(http.StatusTemporaryRedirect)
-	_, _ = w.Write([]byte(url))
+
 }
 
 func (s *Server) HandleRequest(w http.ResponseWriter, r *http.Request) {

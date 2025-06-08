@@ -115,7 +115,7 @@ func TestServerHandleGetUrl(t *testing.T) {
 			contentType: "text/plain",
 			urlID:       "testid123",
 			setupStorage: func(s storage.Storage) {
-				s.SaveUrl("http://example.com", "testid123")
+				s.SaveURL("http://example.com", "testid123")
 			},
 			expectedStatus: http.StatusTemporaryRedirect,
 			expectedBody:   "http://example.com",

@@ -12,7 +12,7 @@ func NewInMemoryStorage() *InMemoryStorage {
 	}
 }
 
-func (s *InMemoryStorage) SaveUrl(url string, key string) (string, error) {
+func (s *InMemoryStorage) SaveURL(url string, key string) (string, error) {
 	if url == "" {
 		return "", fmt.Errorf("url cannot be empty")
 	}
@@ -22,7 +22,7 @@ func (s *InMemoryStorage) SaveUrl(url string, key string) (string, error) {
 	return key, nil
 }
 
-func (s *InMemoryStorage) GetUrl(id string) (string, error) {
+func (s *InMemoryStorage) GetURL(id string) (string, error) {
 	url, exists := s.data[id]
 	if !exists {
 		return "", fmt.Errorf("url with id %s not found", id)

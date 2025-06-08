@@ -12,7 +12,7 @@ func NewMockStorage() *MockStorage {
 	}
 }
 
-func (m *MockStorage) SaveUrl(url string) error {
+func (m *MockStorage) SaveURL(url string) error {
 	if url == "" {
 		return fmt.Errorf("url cannot be empty")
 	}
@@ -22,7 +22,7 @@ func (m *MockStorage) SaveUrl(url string) error {
 	return nil
 }
 
-func (m *MockStorage) GetUrl(id string) (string, error) {
+func (m *MockStorage) GetURL(id string) (string, error) {
 	url, exists := m.data[id]
 	if !exists {
 		return "", fmt.Errorf("url with id %s not found", id)
