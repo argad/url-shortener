@@ -12,14 +12,14 @@ func NewMockStorage() *MockStorage {
 	}
 }
 
-func (m *MockStorage) SaveURL(url string) error {
+func (m *MockStorage) SaveURL(url string, key string) (string, error) {
 	if url == "" {
-		return fmt.Errorf("url cannot be empty")
+		return "", fmt.Errorf("url cannot be empty")
 	}
 
-	id := fmt.Sprintf("%d", len(m.data))
-	m.data[id] = url
-	return nil
+	//id := fmt.Sprintf("%d", len(m.data))
+	m.data[key] = url
+	return key, nil
 }
 
 func (m *MockStorage) GetURL(id string) (string, error) {
