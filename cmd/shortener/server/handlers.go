@@ -67,7 +67,7 @@ func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request, id string)
 	//url, success := s.storage.GetUrl(id)
 	//
 	//if success != nil {
-	//	http.Error(w, "Bad Request Not Found", http.StatusBadRequest)
+	//	http.Error(w, "Bad Request", http.StatusBadRequest)
 	//	return
 	//}
 	//w.Header().Set("Content-Type", "text/plain")
@@ -81,7 +81,7 @@ func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request, id string)
 
 	url, err := s.storage.GetURL(id)
 	if err != nil {
-		http.Error(w, "Bad Request Not Found", http.StatusBadRequest)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
