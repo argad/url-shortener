@@ -57,7 +57,7 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /{id}
-func (s *Server) handleGetUrl(w http.ResponseWriter, r *http.Request, id string) {
+func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request, id string) {
 	//contentType := r.Header.Get("Content-Type")
 	//if r.Method != http.MethodGet || !strings.HasPrefix(contentType, "text/plain") {
 	//	http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -100,7 +100,7 @@ func (s *Server) HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	if strings.HasPrefix(path, "/") && len(path) > 1 {
 		variable := strings.TrimPrefix(path, "/")
-		s.handleGetUrl(w, r, variable)
+		s.handleGetURL(w, r, variable)
 		return
 	}
 

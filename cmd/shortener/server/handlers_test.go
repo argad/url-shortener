@@ -99,71 +99,54 @@ func TestServerHandleShorten(t *testing.T) {
 	}
 }
 
-func TestServerHandleGetUrl(t *testing.T) {
+func TestServerHandleGetURL(t *testing.T) {
 	tests := []struct {
 		name           string
 		method         string
-		contentType    string
 		urlID          string
 		setupStorage   func(storage.Storage)
 		expectedStatus int
-		expectedBody   string
+		expectedURL    string // now checking the URL in the Location header
 	}{
 		{
-			name:        "Successful URL retrieval",
-			method:      http.MethodGet,
-			contentType: "text/plain",
-			urlID:       "testid123",
+			name:   "Successful URL retrieval",
+			method: http.MethodGet,
+			urlID:  "testid123",
 			setupStorage: func(s storage.Storage) {
 				s.SaveURL("http://example.com", "testid123")
 			},
 			expectedStatus: http.StatusTemporaryRedirect,
-			expectedBody:   "http://example.com",
+			expectedURL:    "http://example.com",
 		},
 		{
 			name:           "Invalid method",
 			method:         http.MethodPost,
-			contentType:    "text/plain",
 			urlID:          "testid123",
 			setupStorage:   func(s storage.Storage) {},
 			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Bad Request\n",
-		},
-		{
-			name:           "Invalid Content-Type",
-			method:         http.MethodGet,
-			contentType:    "application/json",
-			urlID:          "testid123",
-			setupStorage:   func(s storage.Storage) {},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Bad Request\n",
 		},
 		{
 			name:           "URL not found",
 			method:         http.MethodGet,
-			contentType:    "text/plain",
 			urlID:          "nonexistent",
 			setupStorage:   func(s storage.Storage) {},
 			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Bad Request Not Found\n",
 		},
 		{
 			name:           "Empty ID",
 			method:         http.MethodGet,
-			contentType:    "text/plain",
 			urlID:          "",
 			setupStorage:   func(s storage.Storage) {},
 			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Bad Request Not Found\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock storage
+			// Create a mock storage
 			mockStorage := storage.NewInMemoryStorage()
 
-			// Set up storage for the test
+			// Configure storage for the test
 			tt.setupStorage(mockStorage)
 
 			server := &Server{
@@ -171,25 +154,24 @@ func TestServerHandleGetUrl(t *testing.T) {
 				mux:     http.NewServeMux(),
 			}
 
-			// Create test request
+			// Create a test request
 			req := httptest.NewRequest(tt.method, "/"+tt.urlID, nil)
-			req.Header.Set("Content-Type", tt.contentType)
 
-			// Create ResponseRecorder to record response
+			// Create a ResponseRecorder to record the response
 			rr := httptest.NewRecorder()
 
 			// Call the handler being tested
-			server.handleGetUrl(rr, req, tt.urlID)
+			server.handleGetURL(rr, req, tt.urlID)
 
-			// Check status code
+			// Check the status code
 			assert.Equal(t, tt.expectedStatus, rr.Code)
 
-			// Check response body
-			assert.Equal(t, tt.expectedBody, rr.Body.String())
-
-			// Check Content-Type header for a successful case
 			if tt.expectedStatus == http.StatusTemporaryRedirect {
-				assert.Equal(t, "text/plain", rr.Header().Get("Content-Type"))
+				// Check the Location header for the successful case
+				assert.Equal(t, tt.expectedURL, rr.Header().Get("Location"))
+			} else {
+				// Check the error message
+				assert.Equal(t, "Bad Request\n", rr.Body.String())
 			}
 		})
 	}
