@@ -16,19 +16,31 @@ type Config struct {
 
 // InitConfig function to initialize the configuration using flags
 func InitConfig() (*Config, error) {
-	var cfg Config
+	cfg := setDefaults()
 
-	cfg.ServerAddress = ":8080"
-	cfg.BaseShortURL = "http://localhost:8080"
-
-	if err := env.Parse(&cfg); err != nil {
-		return nil, fmt.Errorf("error reading environment variables: %w", err)
+	if err := parseEnvironment(cfg); err != nil {
+		return nil, err
 	}
 
+	parseFlags(cfg)
+
+	if err := validate(cfg); err != nil {
+		return nil, err
+	}
+
+	if err := validate(cfg); err != nil {
+		return nil, err
+	}
+
+	normalizeServerAddress(cfg)
+
+	return cfg, nil
+}
+
+func parseFlags(cfg *Config) {
 	serverAddress := flag.String("a", cfg.ServerAddress, "Address for starting the HTTP server (e.g., localhost:8888)")
 	baseShortURL := flag.String("b", cfg.BaseShortURL, "Base address for the resulting shortened URL (e.g., http://localhost:8000/qsd54gFg)")
 
-	// Parse the flags
 	flag.Parse()
 
 	if !isEnvSet("SERVER_ADDRESS") {
@@ -38,17 +50,33 @@ func InitConfig() (*Config, error) {
 	if !isEnvSet("BASE_URL") {
 		cfg.BaseShortURL = *baseShortURL
 	}
+}
 
+func validate(cfg *Config) error {
 	if cfg.BaseShortURL == "" {
-		return nil, fmt.Errorf("the base address for the shortened URL cannot be empty")
+		return fmt.Errorf("the base address for the shortened URL cannot be empty")
 	}
+	return nil
+}
 
-	// Нормализуем адрес сервера
+func normalizeServerAddress(cfg *Config) {
 	if cfg.ServerAddress != "" && !strings.Contains(cfg.ServerAddress, ":") {
 		cfg.ServerAddress = ":" + cfg.ServerAddress
 	}
+}
 
-	return &cfg, nil
+func parseEnvironment(cfg *Config) error {
+	if err := env.Parse(cfg); err != nil {
+		return fmt.Errorf("error reading environment variables: %w", err)
+	}
+	return nil
+}
+
+func setDefaults() *Config {
+	return &Config{
+		ServerAddress: ":8080",
+		BaseShortURL:  "http://localhost:8080",
+	}
 }
 
 // isEnvSet checks if an environment variable is set
