@@ -1,27 +1,37 @@
 package server
 
 import (
+	"github.com/argad/url-shortener/cmd/shortener/middleware"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
 )
 
 type Server struct {
 	storage storage.Storage
 	Router  *chi.Mux
 	baseURL string
+	logger  *zap.Logger
 }
 
 func NewServer(storageInterface storage.Storage, baseURL string) *Server {
+
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
 
 	s := &Server{
 		storage: storageInterface,
 		Router:  chi.NewRouter(),
 		baseURL: baseURL,
+		logger:  logger,
 	}
 
-	s.Router.Use(middleware.Logger)    //?
-	s.Router.Use(middleware.Recoverer) //?
+	//s.Router.Use(middleware.Logger)    //?
+	//s.Router.Use(middleware.Recoverer) //?
+
+	s.Router.Use(middleware.LoggingMiddleware(s.logger))
 
 	s.routes()
 
