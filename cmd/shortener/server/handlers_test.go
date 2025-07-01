@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -154,6 +155,101 @@ func TestServerHandleGetURL(t *testing.T) {
 			if tt.expectedStatus == http.StatusTemporaryRedirect {
 				// Check the Location header for the successful case
 				assert.Equal(t, tt.expectedURL, rr.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+func TestServerHandleAPIShortenURL(t *testing.T) {
+	tests := []struct {
+		name           string
+		method         string
+		contentType    string
+		body           string
+		expectedStatus int
+		expectedResult bool // проверяем наличие поля result
+	}{
+		{
+			name:           "Successful JSON URL shortening",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			body:           `{"url":"https://practicum.yandex.ru"}`,
+			expectedStatus: http.StatusCreated,
+			expectedResult: true,
+		},
+		{
+			name:           "Invalid method",
+			method:         http.MethodGet,
+			contentType:    "application/json",
+			body:           `{"url":"https://practicum.yandex.ru"}`,
+			expectedStatus: http.StatusMethodNotAllowed,
+			expectedResult: false,
+		},
+		{
+			name:           "Invalid Content-Type",
+			method:         http.MethodPost,
+			contentType:    "text/plain",
+			body:           `{"url":"https://practicum.yandex.ru"}`,
+			expectedStatus: http.StatusBadRequest,
+			expectedResult: false,
+		},
+		{
+			name:           "Empty URL in JSON",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			body:           `{"url":""}`,
+			expectedStatus: http.StatusInternalServerError,
+			expectedResult: false,
+		},
+		{
+			name:           "Invalid JSON format",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			body:           `{"url":}`,
+			expectedStatus: http.StatusBadRequest,
+			expectedResult: false,
+		},
+		{
+			name:           "Missing url field",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			body:           `{"other":"https://practicum.yandex.ru"}`,
+			expectedStatus: http.StatusInternalServerError,
+			expectedResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем mock storage
+			mockStorage := storage.NewMockStorage()
+			server := NewServer(mockStorage, "http://localhost:8080/")
+
+			// Создаем тестовый запрос
+			req := httptest.NewRequest(tt.method, "/api/shorten", bytes.NewBufferString(tt.body))
+			req.Header.Set("Content-Type", tt.contentType)
+
+			// Создаем ResponseRecorder для записи ответа
+			rr := httptest.NewRecorder()
+
+			// Вызываем обработчик
+			server.Router.ServeHTTP(rr, req)
+
+			// Проверяем статус код
+			assert.Equal(t, tt.expectedStatus, rr.Code)
+
+			if tt.expectedResult {
+				// Проверяем Content-Type для успешного случая
+				assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+
+				// Парсим JSON ответ
+				var response ShortenResponse
+				err := json.Unmarshal(rr.Body.Bytes(), &response)
+				assert.NoError(t, err)
+
+				// Проверяем, что result содержит ожидаемый префикс
+				assert.True(t, strings.HasPrefix(response.Result, "http://localhost:8080/"))
+				assert.NotEmpty(t, strings.TrimPrefix(response.Result, "http://localhost:8080/"))
 			}
 		})
 	}

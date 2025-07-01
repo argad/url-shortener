@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
@@ -77,4 +78,47 @@ func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", url)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 
+}
+
+type ShortenRequest struct {
+	URL string `json:"url"`
+}
+
+type ShortenResponse struct {
+	Result string `json:"result"`
+}
+
+func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {
+	contentType := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "application/json") {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	var req ShortenRequest
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	id := generateID()
+	urlKey, err := s.storage.SaveURL(req.URL, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	shortURL := s.baseURL + "/" + urlKey
+
+	response := ShortenResponse{
+		Result: shortURL,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	encoder := json.NewEncoder(w)
+	encoder.Encode(response)
 }

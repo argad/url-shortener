@@ -41,4 +41,6 @@ func NewServer(storageInterface storage.Storage, baseURL string) *Server {
 func (s *Server) routes() {
 	s.Router.Post("/", s.handleShorten)
 	s.Router.Get("/{id}", s.handleGetURL)
+	s.Router.Post("/api/shorten", s.handleAPIShortenURL)
+
 }
