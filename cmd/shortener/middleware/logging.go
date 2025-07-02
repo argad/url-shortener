@@ -36,7 +36,6 @@ func LoggingMiddleware(logger *zap.Logger) func(h http.Handler) http.Handler {
 
 			h.ServeHTTP(wrapped, r)
 
-			// Логируем информацию о запросе и ответе
 			logger.Info("HTTP Request",
 				zap.String("method", r.Method),
 				zap.String("uri", r.RequestURI),

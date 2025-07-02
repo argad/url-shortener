@@ -32,6 +32,7 @@ func NewServer(storageInterface storage.Storage, baseURL string) *Server {
 	//s.Router.Use(middleware.Recoverer) //?
 
 	s.Router.Use(middleware.LoggingMiddleware(s.logger))
+	s.Router.Use(middleware.GzipMiddleware)
 
 	s.routes()
 
