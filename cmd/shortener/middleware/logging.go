@@ -31,7 +31,7 @@ func LoggingMiddleware(logger *zap.Logger) func(h http.Handler) http.Handler {
 
 			wrapped := &responseWriter{
 				ResponseWriter: w,
-				status:         http.StatusOK, // 0 ?
+				status:         http.StatusOK,
 			}
 
 			h.ServeHTTP(wrapped, r)

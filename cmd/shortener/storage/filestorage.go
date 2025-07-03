@@ -18,7 +18,7 @@ type URLRecord struct {
 type FileStorage struct {
 	data     map[string]string // shortURL -> originalURL
 	filePath string
-	mutex    sync.RWMutex
+	mutex    sync.Mutex
 	counter  int
 }
 
@@ -66,8 +66,8 @@ func (fs *FileStorage) SaveURL(originalURL, shortURL string) (string, error) {
 }
 
 func (fs *FileStorage) GetURL(shortURL string) (string, error) {
-	fs.mutex.RLock()
-	defer fs.mutex.RUnlock()
+	fs.mutex.Lock()
+	defer fs.mutex.Unlock()
 
 	url, exists := fs.data[shortURL]
 	if !exists {

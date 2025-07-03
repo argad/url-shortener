@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -58,7 +59,10 @@ func TestServerHandleShorten(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock storage
 			mockStorage := storage.NewMockStorage()
-			server := NewServer(mockStorage, "http://localhost:8080/")
+			server, err := NewServer(mockStorage, "http://localhost:8080/")
+			if err != nil {
+				t.Fatalf("Failed to create server: %v", err)
+			}
 
 			// Create test request
 			req := httptest.NewRequest(tt.method, "/", bytes.NewBufferString(tt.body))
@@ -130,7 +134,10 @@ func TestServerHandleGetURL(t *testing.T) {
 			// Configure storage for the test
 			tt.setupStorage(mockStorage)
 
-			server := NewServer(mockStorage, "http://localhost:8080/")
+			server, err := NewServer(mockStorage, "http://localhost:8080/")
+			if err != nil {
+				t.Fatalf("Failed to create server: %v", err)
+			}
 
 			// Create a test request
 			req := httptest.NewRequest(tt.method, "/"+tt.urlID, nil)
@@ -213,33 +220,26 @@ func TestServerHandleAPIShortenURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем mock storage
 			mockStorage := storage.NewMockStorage()
-			server := NewServer(mockStorage, "http://localhost:8080/")
+			server, err := NewServer(mockStorage, "http://localhost:8080/")
+			if err != nil {
+				t.Fatalf("Failed to create server: %v", err)
+			}
 
-			// Создаем тестовый запрос
 			req := httptest.NewRequest(tt.method, "/api/shorten", bytes.NewBufferString(tt.body))
 			req.Header.Set("Content-Type", tt.contentType)
 
-			// Создаем ResponseRecorder для записи ответа
 			rr := httptest.NewRecorder()
-
-			// Вызываем обработчик
 			server.Router.ServeHTTP(rr, req)
-
-			// Проверяем статус код
 			assert.Equal(t, tt.expectedStatus, rr.Code)
 
 			if tt.expectedResult {
-				// Проверяем Content-Type для успешного случая
 				assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
 
-				// Парсим JSON ответ
 				var response ShortenResponse
 				err := json.Unmarshal(rr.Body.Bytes(), &response)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
-				// Проверяем, что result содержит ожидаемый префикс
 				assert.True(t, strings.HasPrefix(response.Result, "http://localhost:8080/"))
 				assert.NotEmpty(t, strings.TrimPrefix(response.Result, "http://localhost:8080/"))
 			}

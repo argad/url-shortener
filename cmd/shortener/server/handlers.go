@@ -5,8 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -16,7 +18,6 @@ const (
 
 func generateID() string {
 
-	//TODO: если ключ уже есть, то брать старый?
 	b := make([]byte, 8)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -28,20 +29,15 @@ func generateID() string {
 
 // POST create shortener /
 func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
-	//contentType := r.Header.Get("Content-Type")
-	//if !strings.HasPrefix(contentType, "text/plain") {
-	//	http.Error(w, "Bad Request", http.StatusBadRequest)
-	//	return
-	//}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil || len(body) == 0 {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	url := strings.TrimSpace(string(body))
 	if !strings.HasPrefix(url, "http") {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -65,13 +61,13 @@ func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	if id == "" {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	url, err := s.storage.GetURL(id)
 	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -91,14 +87,14 @@ type ShortenResponse struct {
 func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	if !strings.HasPrefix(contentType, "application/json") {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	var req ShortenRequest
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
@@ -106,11 +102,25 @@ func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {
 	id := generateID()
 	urlKey, err := s.storage.SaveURL(req.URL, id)
 	if err != nil {
+		s.logger.Error("Failed to save URL to storage",
+			zap.String("original_url", req.URL),
+			zap.String("short_id", id),
+			zap.Error(err),
+		)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	shortURL := s.baseURL + "/" + urlKey
+	shortURL, err := url.JoinPath(s.baseURL, urlKey)
+	if err != nil {
+		s.logger.Error("Failed to join short URL",
+			zap.String("base_url", s.baseURL),
+			zap.String("url_key", urlKey),
+			zap.Error(err),
+		)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 
 	response := ShortenResponse{
 		Result: shortURL,

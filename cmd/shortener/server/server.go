@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/argad/url-shortener/cmd/shortener/middleware"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"github.com/go-chi/chi/v5"
@@ -14,11 +15,11 @@ type Server struct {
 	logger  *zap.Logger
 }
 
-func NewServer(storageInterface storage.Storage, baseURL string) *Server {
+func NewServer(storageInterface storage.Storage, baseURL string) (*Server, error) {
 
 	logger, err := zap.NewProduction()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create logger: %w", err)
 	}
 
 	s := &Server{
@@ -28,15 +29,12 @@ func NewServer(storageInterface storage.Storage, baseURL string) *Server {
 		logger:  logger,
 	}
 
-	//s.Router.Use(middleware.Logger)    //?
-	//s.Router.Use(middleware.Recoverer) //?
-
 	s.Router.Use(middleware.LoggingMiddleware(s.logger))
 	s.Router.Use(middleware.GzipMiddleware)
 
 	s.routes()
 
-	return s
+	return s, nil
 }
 
 func (s *Server) routes() {

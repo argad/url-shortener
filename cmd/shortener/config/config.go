@@ -37,7 +37,7 @@ func InitConfig() (*Config, error) {
 func parseFlags(cfg *Config) {
 	serverAddress := flag.String("a", cfg.ServerAddress, "Address for starting the HTTP server (e.g., localhost:8888)")
 	baseShortURL := flag.String("b", cfg.BaseShortURL, "Base address for the resulting shortened URL (e.g., http://localhost:8000/qsd54gFg)")
-	EnvFilePath := flag.String("f", cfg.EnvFilePath, "Base address of the file to storage")
+	envFilePath := flag.String("f", cfg.EnvFilePath, "Base address of the file to storage")
 
 	flag.Parse()
 
@@ -50,7 +50,7 @@ func parseFlags(cfg *Config) {
 	}
 
 	if !isEnvSet("FILE_STORAGE_PATH") {
-		cfg.EnvFilePath = *EnvFilePath
+		cfg.EnvFilePath = *envFilePath
 	}
 }
 
