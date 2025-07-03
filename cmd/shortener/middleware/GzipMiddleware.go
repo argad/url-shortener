@@ -74,11 +74,7 @@ func GzipMiddleware(h http.Handler) http.Handler {
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 
-		contentType := w.Header().Get("Content-Type")
-		shouldCompress := strings.HasPrefix(contentType, "application/json") ||
-			strings.HasPrefix(contentType, "text/html")
-
-		if shouldCompress && supportsGzip {
+		if supportsGzip && supportsGzip {
 			cw := newCompressWriter(w)
 			ow = cw
 			defer cw.Close()
@@ -86,7 +82,8 @@ func GzipMiddleware(h http.Handler) http.Handler {
 
 		contentEncoding := r.Header.Get("Content-Encoding")
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
-		if shouldCompress && sendsGzip {
+
+		if sendsGzip {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
