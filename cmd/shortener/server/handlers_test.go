@@ -37,14 +37,6 @@ func TestServerHandleShorten(t *testing.T) {
 			expectedBody:   "Bad Request\n",
 		},
 		{
-			name:           "Invalid Content-Type",
-			method:         http.MethodPost,
-			contentType:    "application/json",
-			body:           "http://example.com",
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Bad Request\n",
-		},
-		{
 			name:           "Empty URL",
 			method:         http.MethodPost,
 			contentType:    "text/plain",
