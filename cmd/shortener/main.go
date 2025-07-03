@@ -20,6 +20,9 @@ func main() {
 	}
 
 	srv, err := server.NewServer(storageInstance, cfg.BaseShortURL)
+	if err != nil {
+		log.Fatalf("Failed to create new server: %v", err)
+	}
 
 	err2 := http.ListenAndServe(cfg.ServerAddress, srv.Router)
 	if err2 != nil {
