@@ -12,6 +12,7 @@ import (
 type Config struct {
 	ServerAddress string `env:"SERVER_ADDRESS"`
 	BaseShortURL  string `env:"BASE_URL"`
+	EnvFilePath   string `env:"ENV_FILE_PATH"`
 }
 
 // InitConfig function to initialize the configuration using flags
@@ -28,10 +29,6 @@ func InitConfig() (*Config, error) {
 		return nil, err
 	}
 
-	if err := validate(cfg); err != nil {
-		return nil, err
-	}
-
 	normalizeServerAddress(cfg)
 
 	return cfg, nil
@@ -40,6 +37,7 @@ func InitConfig() (*Config, error) {
 func parseFlags(cfg *Config) {
 	serverAddress := flag.String("a", cfg.ServerAddress, "Address for starting the HTTP server (e.g., localhost:8888)")
 	baseShortURL := flag.String("b", cfg.BaseShortURL, "Base address for the resulting shortened URL (e.g., http://localhost:8000/qsd54gFg)")
+	EnvFilePath := flag.String("f", cfg.EnvFilePath, "Base address of the file to storage")
 
 	flag.Parse()
 
@@ -50,11 +48,18 @@ func parseFlags(cfg *Config) {
 	if !isEnvSet("BASE_URL") {
 		cfg.BaseShortURL = *baseShortURL
 	}
+
+	if !isEnvSet("ENV_FILE_PATH") {
+		cfg.EnvFilePath = *EnvFilePath
+	}
 }
 
 func validate(cfg *Config) error {
 	if cfg.BaseShortURL == "" {
 		return fmt.Errorf("the base address for the shortened URL cannot be empty")
+	}
+	if cfg.EnvFilePath == "" {
+		return fmt.Errorf("the base file storage address cannot be empty")
 	}
 	return nil
 }
@@ -76,6 +81,7 @@ func setDefaults() *Config {
 	return &Config{
 		ServerAddress: ":8080",
 		BaseShortURL:  "http://localhost:8080",
+		EnvFilePath:   "short-url-db.json",
 	}
 }
 

@@ -14,7 +14,13 @@ func main() {
 		log.Fatalf("Ошибка инициализации конфигурации: %v", err)
 	}
 
-	storageInstance := storage.NewInMemoryStorage()
+	//storageInstance := storage.NewInMemoryStorage()
+
+	storageInstance, err := storage.NewFileStorage(cfg.EnvFilePath)
+	if err != nil {
+		log.Fatalf("Failed to create file storage: %v", err)
+	}
+
 	srv := server.NewServer(storageInstance, cfg.BaseShortURL)
 
 	err2 := http.ListenAndServe(cfg.ServerAddress, srv.Router)
