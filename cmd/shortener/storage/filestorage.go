@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -28,8 +29,12 @@ func NewFileStorage(filePath string) (*FileStorage, error) {
 		counter:  0,
 	}
 
-	// Загружаем данные из файла при инициализации
-	if err := fs.loadFromFile(); err != nil {
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create directories for file path: %w", err)
+	}
+
+	if err := fs.loadFromFile(); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 

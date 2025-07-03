@@ -81,7 +81,7 @@ func setDefaults() *Config {
 	return &Config{
 		ServerAddress: ":8080",
 		BaseShortURL:  "http://localhost:8080",
-		EnvFilePath:   "short-url-db.json",
+		EnvFilePath:   "tmp/short-url-db.json",
 	}
 }
 
