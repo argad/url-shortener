@@ -28,11 +28,11 @@ func generateID() string {
 
 // POST create shortener /
 func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
-	//contentType := r.Header.Get("Content-Type")
-	//if !strings.HasPrefix(contentType, "text/plain") {
-	//	http.Error(w, "Bad Request", http.StatusBadRequest)
-	//	return
-	//}
+	contentType := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "text/plain") {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil || len(body) == 0 {

@@ -8,31 +8,37 @@ import (
 )
 
 // Compress
-type gzipWriter struct {
-	w      http.ResponseWriter
-	Writer *gzip.Writer
+type compressWriter struct {
+	w  http.ResponseWriter
+	zw *gzip.Writer
 }
 
-func (g *gzipWriter) Header() http.Header {
-	return g.w.Header()
-}
-
-func (g *gzipWriter) Write(p []byte) (int, error) {
-	return g.Writer.Write(p)
-}
-
-func (g *gzipWriter) WriteHeader(statusCode int) {
-	if statusCode < 300 {
-		g.w.Header().Set("Content-Encoding", "gzip")
+func newCompressWriter(w http.ResponseWriter) *compressWriter {
+	return &compressWriter{
+		w:  w,
+		zw: gzip.NewWriter(w),
 	}
-	g.w.WriteHeader(statusCode)
 }
 
-func (g *gzipWriter) Close() error {
-	return g.Writer.Close()
+func (c *compressWriter) Header() http.Header {
+	return c.w.Header()
 }
 
-// Decompress
+func (c *compressWriter) Write(p []byte) (int, error) {
+	return c.zw.Write(p)
+}
+
+func (c *compressWriter) WriteHeader(statusCode int) {
+	if statusCode < 300 {
+		c.w.Header().Set("Content-Encoding", "gzip")
+	}
+	c.w.WriteHeader(statusCode)
+}
+
+func (c *compressWriter) Close() error {
+	return c.zw.Close()
+}
+
 type compressReader struct {
 	r  io.ReadCloser
 	zr *gzip.Reader
@@ -61,18 +67,26 @@ func (c *compressReader) Close() error {
 	return c.zr.Close()
 }
 
-func GzipMiddleware(next http.Handler) http.Handler {
+func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ow := w
 
-		newWriter := w
+		//acceptEncoding := r.Header.Get("Accept-Encoding")
+		//supportsGzip := strings.Contains(acceptEncoding, "gzip")
+
+		contentType := w.Header().Get("Content-Type")
+		shouldCompress := strings.HasPrefix(contentType, "application/json") ||
+			strings.HasPrefix(contentType, "text/html") ||
+			strings.HasPrefix(contentType, "text/plain")
+
+		if shouldCompress {
+			cw := newCompressWriter(w)
+			ow = cw
+			defer cw.Close()
+		}
 
 		//contentEncoding := r.Header.Get("Content-Encoding")
 		//sendsGzip := strings.Contains(contentEncoding, "gzip")
-
-		contentType := r.Header.Get("Content-Type")
-		shouldCompress := strings.HasPrefix(contentType, "application/json") ||
-			strings.HasPrefix(contentType, "text/html")
-
 		if shouldCompress {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
@@ -83,20 +97,6 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			defer cr.Close()
 		}
 
-		//acceptEncoding := r.Header.Get("Accept-Encoding")
-		//supportsGzip := strings.Contains(acceptEncoding, "gzip")
-
-		if shouldCompress {
-
-			cw := &gzipWriter{
-				w:      newWriter,
-				Writer: gzip.NewWriter(newWriter),
-			}
-			newWriter = cw
-			defer cw.Close()
-		}
-
-		next.ServeHTTP(newWriter, r)
-
+		h.ServeHTTP(ow, r)
 	})
 }
