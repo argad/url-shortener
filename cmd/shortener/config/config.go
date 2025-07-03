@@ -12,7 +12,7 @@ import (
 type Config struct {
 	ServerAddress string `env:"SERVER_ADDRESS"`
 	BaseShortURL  string `env:"BASE_URL"`
-	EnvFilePath   string `env:"ENV_FILE_PATH"`
+	EnvFilePath   string `env:"FILE_STORAGE_PATH"`
 }
 
 // InitConfig function to initialize the configuration using flags
@@ -49,7 +49,7 @@ func parseFlags(cfg *Config) {
 		cfg.BaseShortURL = *baseShortURL
 	}
 
-	if !isEnvSet("ENV_FILE_PATH") {
+	if !isEnvSet("FILE_STORAGE_PATH") {
 		cfg.EnvFilePath = *EnvFilePath
 	}
 }
