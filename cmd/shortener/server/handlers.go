@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const (
@@ -82,6 +84,26 @@ type ShortenRequest struct {
 
 type ShortenResponse struct {
 	Result string `json:"result"`
+}
+
+func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.logger.Error("Database connection is not initialized")
+		http.Error(w, "Database connection is not available", http.StatusInternalServerError)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	if err := s.db.Ping(ctx); err != nil {
+		s.logger.Error("Database ping failed", zap.Error(err))
+		http.Error(w, "Database connection failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
 
 func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {

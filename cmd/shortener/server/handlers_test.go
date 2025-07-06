@@ -59,7 +59,7 @@ func TestServerHandleShorten(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock storage
 			mockStorage := storage.NewMockStorage()
-			server, err := NewServer(mockStorage, "http://localhost:8080/")
+			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
 			if err != nil {
 				t.Fatalf("Failed to create server: %v", err)
 			}
@@ -134,7 +134,7 @@ func TestServerHandleGetURL(t *testing.T) {
 			// Configure storage for the test
 			tt.setupStorage(mockStorage)
 
-			server, err := NewServer(mockStorage, "http://localhost:8080/")
+			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
 			if err != nil {
 				t.Fatalf("Failed to create server: %v", err)
 			}
@@ -221,7 +221,7 @@ func TestServerHandleAPIShortenURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage := storage.NewMockStorage()
-			server, err := NewServer(mockStorage, "http://localhost:8080/")
+			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
 			if err != nil {
 				t.Fatalf("Failed to create server: %v", err)
 			}

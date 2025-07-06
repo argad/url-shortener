@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/argad/url-shortener/cmd/shortener/database"
 	"github.com/argad/url-shortener/cmd/shortener/middleware"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"github.com/go-chi/chi/v5"
@@ -13,9 +14,10 @@ type Server struct {
 	Router  *chi.Mux
 	baseURL string
 	logger  *zap.Logger
+	db      *database.Database
 }
 
-func NewServer(storageInterface storage.Storage, baseURL string) (*Server, error) {
+func NewServer(storageInterface storage.Storage, baseURL string, db *database.Database) (*Server, error) {
 
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -27,6 +29,7 @@ func NewServer(storageInterface storage.Storage, baseURL string) (*Server, error
 		Router:  chi.NewRouter(),
 		baseURL: baseURL,
 		logger:  logger,
+		db:      db,
 	}
 
 	s.Router.Use(middleware.LoggingMiddleware(s.logger))
@@ -39,7 +42,8 @@ func NewServer(storageInterface storage.Storage, baseURL string) (*Server, error
 
 func (s *Server) routes() {
 	s.Router.Post("/", s.handleShorten)
-	s.Router.Get("/{id}", s.handleGetURL)
+	s.Router.Get("/ping", s.handlePing) // Перенесите эту строку ВЫШЕ
 	s.Router.Post("/api/shorten", s.handleAPIShortenURL)
+	s.Router.Get("/{id}", s.handleGetURL) // Этот роут должен быть в конце
 
 }

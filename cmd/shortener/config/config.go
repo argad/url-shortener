@@ -13,6 +13,7 @@ type Config struct {
 	ServerAddress string `env:"SERVER_ADDRESS"`
 	BaseShortURL  string `env:"BASE_URL"`
 	EnvFilePath   string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN   string `env:"DATABASE_DSN"`
 }
 
 // InitConfig function to initialize the configuration using flags
@@ -38,6 +39,7 @@ func parseFlags(cfg *Config) {
 	serverAddress := flag.String("a", cfg.ServerAddress, "Address for starting the HTTP server (e.g., localhost:8888)")
 	baseShortURL := flag.String("b", cfg.BaseShortURL, "Base address for the resulting shortened URL (e.g., http://localhost:8000/qsd54gFg)")
 	envFilePath := flag.String("f", cfg.EnvFilePath, "Base address of the file to storage")
+	databaseDSN := flag.String("d", cfg.DatabaseDSN, "Base DSN address of the database")
 
 	flag.Parse()
 
@@ -52,6 +54,10 @@ func parseFlags(cfg *Config) {
 	if !isEnvSet("FILE_STORAGE_PATH") {
 		cfg.EnvFilePath = *envFilePath
 	}
+
+	if !isEnvSet("DATABASE_DSN") {
+		cfg.DatabaseDSN = *databaseDSN
+	}
 }
 
 func validate(cfg *Config) error {
@@ -60,6 +66,9 @@ func validate(cfg *Config) error {
 	}
 	if cfg.EnvFilePath == "" {
 		return fmt.Errorf("the base file storage address cannot be empty")
+	}
+	if cfg.DatabaseDSN == "" {
+		return fmt.Errorf("the base DSN address cannot be empty")
 	}
 	return nil
 }
@@ -82,6 +91,7 @@ func setDefaults() *Config {
 		ServerAddress: ":8080",
 		BaseShortURL:  "http://localhost:8080",
 		EnvFilePath:   "tmp/short-url-db.json",
+		DatabaseDSN:   "postgresql://postgres:rfvtgbrfv@localhost:5432/postgres?sslmode=disable",
 	}
 }
 
