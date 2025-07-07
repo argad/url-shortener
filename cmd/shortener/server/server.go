@@ -42,8 +42,8 @@ func NewServer(storageInterface storage.Storage, baseURL string, db *database.Da
 
 func (s *Server) routes() {
 	s.Router.Post("/", s.handleShorten)
-	s.Router.Get("/ping", s.handlePing) // Перенесите эту строку ВЫШЕ
+	s.Router.Get("/ping", s.handlePing)
 	s.Router.Post("/api/shorten", s.handleAPIShortenURL)
-	s.Router.Get("/{id}", s.handleGetURL) // Этот роут должен быть в конце
+	s.Router.Get("/{id}", s.handleGetURL)
 
 }

@@ -17,7 +17,6 @@ func (m *MockStorage) SaveURL(url string, key string) (string, error) {
 		return "", fmt.Errorf("url cannot be empty")
 	}
 
-	//id := fmt.Sprintf("%d", len(m.data))
 	m.data[key] = url
 	return key, nil
 }

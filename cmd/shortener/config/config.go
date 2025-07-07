@@ -64,12 +64,12 @@ func validate(cfg *Config) error {
 	if cfg.BaseShortURL == "" {
 		return fmt.Errorf("the base address for the shortened URL cannot be empty")
 	}
-	if cfg.EnvFilePath == "" {
-		return fmt.Errorf("the base file storage address cannot be empty")
-	}
-	if cfg.DatabaseDSN == "" {
-		return fmt.Errorf("the base DSN address cannot be empty")
-	}
+	//if cfg.EnvFilePath == "" {
+	//	return fmt.Errorf("the base file storage address cannot be empty")
+	//}
+	//if cfg.DatabaseDSN == "" {
+	//	return fmt.Errorf("the base DSN address cannot be empty")
+	//}
 	return nil
 }
 
@@ -90,8 +90,8 @@ func setDefaults() *Config {
 	return &Config{
 		ServerAddress: ":8080",
 		BaseShortURL:  "http://localhost:8080",
-		EnvFilePath:   "tmp/short-url-db.json",
-		DatabaseDSN:   "postgresql://postgres:rfvtgbrfv@localhost:5432/postgres?sslmode=disable",
+		EnvFilePath:   "",
+		DatabaseDSN:   "",
 	}
 }
 
