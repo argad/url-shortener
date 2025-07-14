@@ -28,3 +28,13 @@ func (m *MockStorage) GetURL(id string) (string, error) {
 	}
 	return url, nil
 }
+
+func (m *MockStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
+	results := make([]BatchURLData, len(batchData))
+	for i, item := range batchData {
+		m.data[item.ShortURL] = item.OriginalURL
+		results[i] = item
+	}
+
+	return results, nil
+}

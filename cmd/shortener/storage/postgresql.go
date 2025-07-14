@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
@@ -82,4 +83,57 @@ func (ps *PostgresStorage) GetURL(shortURL string) (string, error) {
 	}
 
 	return url, nil
+}
+
+func (s *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
+	if len(batchData) == 0 {
+		return nil, fmt.Errorf("batch data cannot be empty")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	batch := &pgx.Batch{}
+	query := `
+		INSERT INTO urls (short_url, original_url) 
+		VALUES ($1, $2) 
+		ON CONFLICT (short_url) 
+		DO UPDATE SET original_url = EXCLUDED.original_url
+		RETURNING short_url;
+	`
+
+	for _, item := range batchData {
+		batch.Queue(query, item.ShortURL, item.OriginalURL)
+	}
+
+	results := tx.SendBatch(ctx, batch)
+	defer results.Close()
+
+	returnedData := make([]BatchURLData, len(batchData))
+	for i, item := range batchData {
+		var returnedShortURL string
+		err := results.QueryRow().Scan(&returnedShortURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save URL at index %d: %w", i, err)
+		}
+
+		returnedData[i] = BatchURLData{
+			CorrelationID: item.CorrelationID,
+			OriginalURL:   item.OriginalURL,
+			ShortURL:      returnedShortURL,
+		}
+	}
+
+	// Коммитим транзакцию
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return returnedData, nil
 }

@@ -76,6 +76,32 @@ func (fs *FileStorage) GetURL(shortURL string) (string, error) {
 	return url, nil
 }
 
+func (fs *FileStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
+	fs.mutex.Lock()
+	defer fs.mutex.Unlock()
+
+	results := make([]BatchURLData, len(batchData))
+	records := make([]URLRecord, len(batchData))
+
+	for i, item := range batchData {
+		fs.data[item.ShortURL] = item.OriginalURL
+		fs.counter++
+
+		records[i] = URLRecord{
+			UUID:        fmt.Sprintf("%d", fs.counter),
+			ShortURL:    item.ShortURL,
+			OriginalURL: item.OriginalURL,
+		}
+		results[i] = item
+	}
+
+	if err := fs.appendBatchToFile(records); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
 func (fs *FileStorage) loadFromFile() error {
 	file, err := os.OpenFile(fs.filePath, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -125,4 +151,25 @@ func (fs *FileStorage) appendToFile(record URLRecord) error {
 
 	_, err = file.Write(append(data, '\n'))
 	return err
+}
+
+func (fs *FileStorage) appendBatchToFile(records []URLRecord) error {
+	file, err := os.OpenFile(fs.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for _, record := range records {
+		data, err := json.Marshal(record)
+		if err != nil {
+			return err
+		}
+
+		if _, err := file.Write(append(data, '\n')); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

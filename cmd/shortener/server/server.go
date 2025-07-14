@@ -45,5 +45,6 @@ func (s *Server) routes() {
 	s.Router.Get("/ping", s.handlePing)
 	s.Router.Post("/api/shorten", s.handleAPIShortenURL)
 	s.Router.Get("/{id}", s.handleGetURL)
+	s.Router.Post("/api/shorten/batch", s.handleAPIShortenBatch)
 
 }

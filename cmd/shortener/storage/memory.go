@@ -29,3 +29,13 @@ func (s *InMemoryStorage) GetURL(id string) (string, error) {
 	}
 	return url, nil
 }
+
+func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
+	results := make([]BatchURLData, len(batchData))
+	for i, item := range batchData {
+		s.data[item.ShortURL] = item.OriginalURL
+		results[i] = item
+	}
+
+	return results, nil
+}

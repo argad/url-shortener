@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"io"
@@ -17,6 +19,24 @@ import (
 const (
 	host = "http://localhost:8080/"
 )
+
+type ShortenRequest struct {
+	URL string `json:"url"`
+}
+
+type ShortenResponse struct {
+	Result string `json:"result"`
+}
+
+type BatchURLRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type BatchURLResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
 
 func generateID() string {
 
@@ -76,14 +96,6 @@ func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", url)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 
-}
-
-type ShortenRequest struct {
-	URL string `json:"url"`
-}
-
-type ShortenResponse struct {
-	Result string `json:"result"`
 }
 
 func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
@@ -153,4 +165,55 @@ func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	encoder := json.NewEncoder(w)
 	encoder.Encode(response)
+}
+
+func (s *Server) handleAPIShortenBatch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req []BatchURLRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if len(req) == 0 {
+		http.Error(w, "Empty batch", http.StatusBadRequest)
+		return
+	}
+
+	batchData := make([]storage.BatchURLData, len(req))
+	for i, item := range req {
+		if item.OriginalURL == "" {
+			http.Error(w, "URL cannot be empty", http.StatusBadRequest)
+			return
+		}
+
+		id := generateID()
+		batchData[i] = storage.BatchURLData{
+			CorrelationID: item.CorrelationID,
+			OriginalURL:   item.OriginalURL,
+			ShortURL:      id,
+		}
+	}
+
+	results, err := s.storage.SaveBatch(batchData)
+	if err != nil {
+		http.Error(w, "Error saving URLs", http.StatusInternalServerError)
+		return
+	}
+
+	resp := make([]BatchURLResponse, len(results))
+	for i, result := range results {
+		resp[i] = BatchURLResponse{
+			CorrelationID: result.CorrelationID,
+			ShortURL:      fmt.Sprintf("%s/%s", s.baseURL, result.ShortURL),
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
 }
