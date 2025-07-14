@@ -85,7 +85,7 @@ func (ps *PostgresStorage) GetURL(shortURL string) (string, error) {
 	return url, nil
 }
 
-func (s *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
+func (ps *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
 	if len(batchData) == 0 {
 		return nil, fmt.Errorf("batch data cannot be empty")
 	}
@@ -93,7 +93,7 @@ func (s *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, e
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	tx, err := s.db.Begin(ctx)
+	tx, err := ps.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -113,7 +113,6 @@ func (s *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, e
 	}
 
 	results := tx.SendBatch(ctx, batch)
-	defer results.Close()
 
 	returnedData := make([]BatchURLData, len(batchData))
 	for i, item := range batchData {
@@ -130,7 +129,8 @@ func (s *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, e
 		}
 	}
 
-	// Коммитим транзакцию
+	results.Close()
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}

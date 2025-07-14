@@ -201,6 +201,7 @@ func (s *Server) handleAPIShortenBatch(w http.ResponseWriter, r *http.Request) {
 
 	results, err := s.storage.SaveBatch(batchData)
 	if err != nil {
+		s.logger.Error(err.Error())
 		http.Error(w, "Error saving URLs", http.StatusInternalServerError)
 		return
 	}
