@@ -10,6 +10,14 @@ import (
 	"time"
 )
 
+type ErrURLConflict struct {
+	ExistingShortURL string
+}
+
+func (e *ErrURLConflict) Error() string {
+	return fmt.Sprintf("URL already exists: %s", e.ExistingShortURL)
+}
+
 type PostgresStorage struct {
 	db *pgxpool.Pool
 }
@@ -32,6 +40,8 @@ func (ps *PostgresStorage) createTables() error {
 		original_url VARCHAR(255) NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
+
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_urls_original_url ON urls(original_url);
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -47,7 +57,11 @@ func (ps *PostgresStorage) SaveURL(originalURL, shortURL string) (string, error)
 	}
 
 	query := `
-	INSERT INTO urls (short_url, original_url) VALUES ($1, $2) RETURNING short_url;
+	INSERT INTO urls (short_url, original_url) 
+	VALUES ($1, $2) 
+	ON CONFLICT (original_url) 
+	DO NOTHING
+	RETURNING short_url;
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -56,8 +70,16 @@ func (ps *PostgresStorage) SaveURL(originalURL, shortURL string) (string, error)
 	var returnedShortURL string
 	err := ps.db.QueryRow(ctx, query, shortURL, originalURL).Scan(&returnedShortURL)
 	if err != nil {
-
-		return "", fmt.Errorf("failed to save URL")
+		if errors.Is(err, pgx.ErrNoRows) {
+			selectQuery := `SELECT short_url FROM urls WHERE original_url = $1`
+			var existingShortURL string
+			err := ps.db.QueryRow(ctx, selectQuery, originalURL).Scan(&existingShortURL)
+			if err != nil {
+				return "", fmt.Errorf("failed to get existing URL: %w", err)
+			}
+			return "", &ErrURLConflict{ExistingShortURL: existingShortURL}
+		}
+		return "", fmt.Errorf("failed to save URL: %w", err)
 	}
 
 	return returnedShortURL, nil
@@ -103,7 +125,7 @@ func (ps *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, 
 	query := `
 		INSERT INTO urls (short_url, original_url) 
 		VALUES ($1, $2) 
-		ON CONFLICT (short_url) 
+		ON CONFLICT (original_url) 
 		DO UPDATE SET original_url = EXCLUDED.original_url
 		RETURNING short_url;
 	`

@@ -25,17 +25,6 @@ func main() {
 		defer db.Close()
 	}
 
-	//db, err := database.NewDatabase(cfg.DatabaseDSN)
-	//if err != nil {
-	//	log.Fatalf("Failed to initialize database: %v", err)
-	//}
-	//defer db.Close()
-
-	//storageInstance, err = storage.NewFileStorage(cfg.EnvFilePath)
-	//if err != nil {
-	//	log.Fatalf("Failed to create file storage: %v", err)
-	//}
-
 	srv, err := server.NewServer(storageInstance, cfg.BaseShortURL, db)
 	if err != nil {
 		log.Fatalf("Failed to create new server: %v", err)

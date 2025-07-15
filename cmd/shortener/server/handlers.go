@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"github.com/go-chi/chi/v5"
@@ -66,6 +67,12 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 	id := generateID()
 	urlKey, err := s.storage.SaveURL(url, id)
 	if err != nil {
+		var conflictErr *storage.ErrURLConflict
+		if errors.As(err, &conflictErr) {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(conflictErr.ExistingShortURL))
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -136,11 +143,22 @@ func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {
 	id := generateID()
 	urlKey, err := s.storage.SaveURL(req.URL, id)
 	if err != nil {
+		//log
 		s.logger.Error("Failed to save URL to storage",
 			zap.String("original_url", req.URL),
 			zap.String("short_id", id),
 			zap.Error(err),
 		)
+		//
+		var conflictErr *storage.ErrURLConflict
+		if errors.As(err, &conflictErr) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]string{
+				"result": conflictErr.ExistingShortURL,
+			})
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
