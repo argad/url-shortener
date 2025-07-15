@@ -58,14 +58,14 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	myUrl := strings.TrimSpace(string(body))
-	if !strings.HasPrefix(myUrl, "http") {
+	myURL := strings.TrimSpace(string(body))
+	if !strings.HasPrefix(myURL, "http") {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	id := generateID()
-	urlKey, err := s.storage.SaveURL(myUrl, id)
+	urlKey, err := s.storage.SaveURL(myURL, id)
 	if err != nil {
 		var conflictErr *storage.ErrURLConflict
 		if errors.As(err, &conflictErr) {
