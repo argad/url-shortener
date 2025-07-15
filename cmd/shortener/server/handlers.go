@@ -58,29 +58,39 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	url := strings.TrimSpace(string(body))
-	if !strings.HasPrefix(url, "http") {
+	myUrl := strings.TrimSpace(string(body))
+	if !strings.HasPrefix(myUrl, "http") {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	id := generateID()
-	urlKey, err := s.storage.SaveURL(url, id)
+	urlKey, err := s.storage.SaveURL(myUrl, id)
 	if err != nil {
 		var conflictErr *storage.ErrURLConflict
 		if errors.As(err, &conflictErr) {
 			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte(conflictErr.ExistingShortURL))
+			fullURL, err := url.JoinPath(s.baseURL, conflictErr.ExistingShortURL)
+			if err != nil {
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "text/plain")
+			w.Write([]byte(fullURL))
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	shortURL := s.baseURL + "/" + urlKey
+	fullURL, err := url.JoinPath(s.baseURL, urlKey)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
-	_, _ = w.Write([]byte(shortURL))
+	_, _ = w.Write([]byte(fullURL))
 }
 
 // GET /{id}
@@ -152,10 +162,17 @@ func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {
 		//
 		var conflictErr *storage.ErrURLConflict
 		if errors.As(err, &conflictErr) {
+
+			fullURL, err := url.JoinPath(s.baseURL, conflictErr.ExistingShortURL)
+			if err != nil {
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
 			json.NewEncoder(w).Encode(map[string]string{
-				"result": conflictErr.ExistingShortURL,
+				"result": fullURL,
 			})
 			return
 		}
