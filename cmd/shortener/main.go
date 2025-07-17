@@ -17,6 +17,9 @@ func main() {
 
 	// TODO: put logger instance in config
 	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to create logger instance: %v", err)
+	}
 	sf := factory.NewStorageFactory(logger)
 	storageInstance, err := sf.CreateStorage(cfg)
 	if err != nil {
