@@ -10,10 +10,10 @@ import (
 
 // Config structure for storing configuration
 type Config struct {
-	ServerAddress string `env:"SERVER_ADDRESS"`
-	BaseShortURL  string `env:"BASE_URL"`
-	EnvFilePath   string `env:"FILE_STORAGE_PATH"`
-	DatabaseDSN   string `env:"DATABASE_DSN"`
+	ServerAddress   string `env:"SERVER_ADDRESS"`
+	BaseShortURL    string `env:"BASE_URL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 // InitConfig function to initialize the configuration using flags
@@ -38,7 +38,7 @@ func InitConfig() (*Config, error) {
 func parseFlags(cfg *Config) {
 	serverAddress := flag.String("a", cfg.ServerAddress, "Address for starting the HTTP server (e.g., localhost:8888)")
 	baseShortURL := flag.String("b", cfg.BaseShortURL, "Base address for the resulting shortened URL (e.g., http://localhost:8000/qsd54gFg)")
-	envFilePath := flag.String("f", cfg.EnvFilePath, "Base address of the file to storage")
+	envFilePath := flag.String("f", cfg.FileStoragePath, "Base address of the file to storage")
 	databaseDSN := flag.String("d", cfg.DatabaseDSN, "Base DSN address of the database")
 
 	flag.Parse()
@@ -52,7 +52,7 @@ func parseFlags(cfg *Config) {
 	}
 
 	if !isEnvSet("FILE_STORAGE_PATH") {
-		cfg.EnvFilePath = *envFilePath
+		cfg.FileStoragePath = *envFilePath
 	}
 
 	if !isEnvSet("DATABASE_DSN") {
@@ -82,10 +82,10 @@ func parseEnvironment(cfg *Config) error {
 
 func setDefaults() *Config {
 	return &Config{
-		ServerAddress: ":8080",
-		BaseShortURL:  "http://localhost:8080",
-		EnvFilePath:   "",
-		DatabaseDSN:   "",
+		ServerAddress:   ":8080",
+		BaseShortURL:    "http://localhost:8080",
+		FileStoragePath: "",
+		DatabaseDSN:     "",
 	}
 }
 

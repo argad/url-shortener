@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/argad/url-shortener/cmd/shortener/config"
-	"github.com/argad/url-shortener/cmd/shortener/database"
+	"github.com/argad/url-shortener/cmd/shortener/factory"
 	"github.com/argad/url-shortener/cmd/shortener/server"
-	"github.com/argad/url-shortener/cmd/shortener/storage"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
 )
@@ -15,17 +15,20 @@ func main() {
 		log.Fatalf("Ошибка инициализации конфигурации: %v", err)
 	}
 
-	storageInstance, db, err := createStorage(cfg)
+	// TODO: put logger instance in config
+	logger, err := zap.NewProduction()
+	sf := factory.NewStorageFactory(logger)
+	storageInstance, err := sf.CreateStorage(cfg)
 	if err != nil {
 		log.Fatalf("Failed to create storage: %v", err)
 	}
 
 	// close db if exist
-	if db != nil {
-		defer db.Close()
+	if storageInstance.DB != nil {
+		defer storageInstance.DB.Close()
 	}
 
-	srv, err := server.NewServer(storageInstance, cfg.BaseShortURL, db)
+	srv, err := server.NewServer(storageInstance.Storage, cfg.BaseShortURL, storageInstance.DB)
 	if err != nil {
 		log.Fatalf("Failed to create new server: %v", err)
 	}
@@ -34,39 +37,4 @@ func main() {
 	if err2 != nil {
 		panic(err2)
 	}
-}
-
-func createStorage(cfg *config.Config) (storage.Storage, *database.Database, error) {
-
-	if cfg.DatabaseDSN != "" {
-		log.Println("Attempting to use PostgreSQL storage...")
-		db, err := database.NewDatabase(cfg.DatabaseDSN)
-		if err != nil {
-			log.Printf("Failed to initialize PostgreSQL database: %v", err)
-		} else {
-			postgresStorage, err := storage.NewPostgresStorage(db.GetPool())
-			if err != nil {
-				log.Printf("Failed to create PostgreSQL storage: %v", err)
-				db.Close()
-			} else {
-				log.Println("Using PostgreSQL storage")
-				return postgresStorage, db, nil
-			}
-		}
-	}
-
-	if cfg.EnvFilePath != "" {
-		log.Println("Attempting to use file storage...")
-		fileStorage, err := storage.NewFileStorage(cfg.EnvFilePath)
-		if err != nil {
-			log.Printf("Failed to create file storage: %v", err)
-		} else {
-			log.Printf("Using file storage: %s", cfg.EnvFilePath)
-			return fileStorage, nil, nil
-		}
-	}
-
-	log.Println("Using in-memory storage")
-	memoryStorage := storage.NewInMemoryStorage()
-	return memoryStorage, nil, nil
 }

@@ -10,11 +10,11 @@ import (
 	"time"
 )
 
-type ErrURLConflict struct {
+type URLConflictError struct {
 	ExistingShortURL string
 }
 
-func (e *ErrURLConflict) Error() string {
+func (e *URLConflictError) Error() string {
 	return fmt.Sprintf("URL already exists: %s", e.ExistingShortURL)
 }
 
@@ -77,7 +77,7 @@ func (ps *PostgresStorage) SaveURL(originalURL, shortURL string) (string, error)
 			if err != nil {
 				return "", fmt.Errorf("failed to get existing URL: %w", err)
 			}
-			return "", &ErrURLConflict{ExistingShortURL: existingShortURL}
+			return "", &URLConflictError{ExistingShortURL: existingShortURL}
 		}
 		return "", fmt.Errorf("failed to save URL: %w", err)
 	}
@@ -108,54 +108,108 @@ func (ps *PostgresStorage) GetURL(shortURL string) (string, error) {
 }
 
 func (ps *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
-	if len(batchData) == 0 {
-		return nil, fmt.Errorf("batch data cannot be empty")
+	if err := ps.validateBatchData(batchData); err != nil {
+		return nil, err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	tx, err := ps.beginTransaction(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	batch := ps.prepareBatch(batchData)
+	results := tx.SendBatch(ctx, batch)
+
+	returnedData, err := ps.processBatchResults(results, batchData)
+	if err != nil {
+		return nil, err
+	}
+
+	results.Close()
+
+	if err := ps.commitTransaction(ctx, tx); err != nil {
+		return nil, err
+	}
+
+	return returnedData, nil
+}
+
+func (ps *PostgresStorage) validateBatchData(batchData []BatchURLData) error {
+	if len(batchData) == 0 {
+		return fmt.Errorf("batch data cannot be empty")
+	}
+	return nil
+}
+
+func (ps *PostgresStorage) beginTransaction(ctx context.Context) (pgx.Tx, error) {
 	tx, err := ps.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	return tx, nil
+}
 
+// не слишком мелко?
+func (ps *PostgresStorage) prepareBatch(batchData []BatchURLData) *pgx.Batch {
 	batch := &pgx.Batch{}
-	query := `
+	query := ps.getBatchInsertQuery()
+
+	for _, item := range batchData {
+		batch.Queue(query, item.ShortURL, item.OriginalURL)
+	}
+
+	return batch
+}
+
+func (ps *PostgresStorage) getBatchInsertQuery() string {
+	return `
 		INSERT INTO urls (short_url, original_url) 
 		VALUES ($1, $2) 
 		ON CONFLICT (original_url) 
 		DO UPDATE SET original_url = EXCLUDED.original_url
 		RETURNING short_url;
 	`
+}
 
-	for _, item := range batchData {
-		batch.Queue(query, item.ShortURL, item.OriginalURL)
-	}
-
-	results := tx.SendBatch(ctx, batch)
-
+func (ps *PostgresStorage) processBatchResults(results pgx.BatchResults, batchData []BatchURLData) ([]BatchURLData, error) {
 	returnedData := make([]BatchURLData, len(batchData))
+
 	for i, item := range batchData {
-		var returnedShortURL string
-		err := results.QueryRow().Scan(&returnedShortURL)
+		returnedShortURL, err := ps.processSingleResult(results, i)
 		if err != nil {
-			return nil, fmt.Errorf("failed to save URL at index %d: %w", i, err)
+			return nil, err
 		}
 
-		returnedData[i] = BatchURLData{
-			CorrelationID: item.CorrelationID,
-			OriginalURL:   item.OriginalURL,
-			ShortURL:      returnedShortURL,
-		}
-	}
-
-	results.Close()
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		returnedData[i] = ps.buildBatchResultItem(item, returnedShortURL)
 	}
 
 	return returnedData, nil
+}
+
+func (ps *PostgresStorage) processSingleResult(results pgx.BatchResults, index int) (string, error) {
+	var returnedShortURL string
+	err := results.QueryRow().Scan(&returnedShortURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to save URL at index %d: %w", index, err)
+	}
+	return returnedShortURL, nil
+}
+
+func (ps *PostgresStorage) buildBatchResultItem(originalItem BatchURLData, returnedShortURL string) BatchURLData {
+	return BatchURLData{
+		CorrelationID: originalItem.CorrelationID,
+		OriginalURL:   originalItem.OriginalURL,
+		ShortURL:      returnedShortURL,
+	}
+}
+
+func (ps *PostgresStorage) commitTransaction(ctx context.Context, tx pgx.Tx) error {
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
 }

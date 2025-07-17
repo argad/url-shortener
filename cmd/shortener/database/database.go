@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"os"
 )
 
 type Database struct {
@@ -18,8 +17,7 @@ func NewDatabase(databaseDSN string) (*Database, error) {
 
 	dbpool, err := pgxpool.New(context.Background(), databaseDSN)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("unable to create connection pool: %w", err)
 	}
 
 	return &Database{pool: dbpool}, nil

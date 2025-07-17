@@ -27,7 +27,7 @@ func TestServerHandleShorten(t *testing.T) {
 			contentType:    "text/plain",
 			body:           "http://example.com",
 			expectedStatus: http.StatusCreated,
-			expectedBody:   host, // Check only the prefix, as the ID is generated randomly
+			expectedBody:   "http://localhost:8080/", // Check only the prefix, as the ID is generated randomly
 		},
 		{
 			name:           "Invalid method",

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Compress
+// compressWriter wraps http.ResponseWriter to provide gzip compression
 type compressWriter struct {
 	w  http.ResponseWriter
 	zw *gzip.Writer
