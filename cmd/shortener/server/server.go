@@ -34,6 +34,7 @@ func NewServer(storageInterface storage.Storage, baseURL string, db *database.Da
 
 	s.Router.Use(middleware.LoggingMiddleware(s.logger))
 	s.Router.Use(middleware.GzipMiddleware)
+	s.Router.Use(middleware.AuthMiddleware)
 
 	s.routes()
 
@@ -46,5 +47,6 @@ func (s *Server) routes() {
 	s.Router.Post("/api/shorten", s.handleAPIShortenURL)
 	s.Router.Get("/{id}", s.handleGetURL)
 	s.Router.Post("/api/shorten/batch", s.handleAPIShortenBatch)
+	s.Router.With(middleware.RequireAuth).Get("/api/user/urls", s.handleGetUserURLs)
 
 }

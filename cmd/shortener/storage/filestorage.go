@@ -9,14 +9,8 @@ import (
 	"sync"
 )
 
-type URLRecord struct {
-	UUID        string `json:"uuid"`
-	ShortURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
-}
-
 type FileStorage struct {
-	data     map[string]string // shortURL -> originalURL
+	data     map[string]URLData // shortURL -> originalURL
 	filePath string
 	mutex    sync.Mutex
 	counter  int
@@ -24,7 +18,7 @@ type FileStorage struct {
 
 func NewFileStorage(filePath string) (*FileStorage, error) {
 	fs := &FileStorage{
-		data:     make(map[string]string),
+		data:     make(map[string]URLData),
 		filePath: filePath,
 		counter:  0,
 	}
@@ -41,7 +35,7 @@ func NewFileStorage(filePath string) (*FileStorage, error) {
 	return fs, nil
 }
 
-func (fs *FileStorage) SaveURL(originalURL, shortURL string) (string, error) {
+func (fs *FileStorage) SaveURL(originalURL, shortURL string, userID string) (string, error) {
 	if originalURL == "" {
 		return "", fmt.Errorf("url cannot be empty")
 	}
@@ -49,11 +43,8 @@ func (fs *FileStorage) SaveURL(originalURL, shortURL string) (string, error) {
 	fs.mutex.Lock()
 	defer fs.mutex.Unlock()
 
-	fs.data[shortURL] = originalURL
-	fs.counter++
-
-	record := URLRecord{
-		UUID:        fmt.Sprintf("%d", fs.counter),
+	record := URLData{
+		UserID:      userID,
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
 	}
@@ -73,22 +64,32 @@ func (fs *FileStorage) GetURL(shortURL string) (string, error) {
 	if !exists {
 		return "", fmt.Errorf("url with id %s not found", shortURL)
 	}
-	return url, nil
+	return url.OriginalURL, nil
 }
 
-func (fs *FileStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
+func (fs *FileStorage) GetUserURLs(userID string) ([]URLData, error) {
+	var userURLs []URLData
+
+	for _, urlData := range fs.data {
+		if urlData.UserID == userID {
+			userURLs = append(userURLs, urlData)
+		}
+	}
+
+	return userURLs, nil
+}
+
+func (fs *FileStorage) SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error) {
 	fs.mutex.Lock()
 	defer fs.mutex.Unlock()
 
 	results := make([]BatchURLData, len(batchData))
-	records := make([]URLRecord, len(batchData))
+	records := make([]URLData, len(batchData))
 
 	for i, item := range batchData {
-		fs.data[item.ShortURL] = item.OriginalURL
-		fs.counter++
 
-		records[i] = URLRecord{
-			UUID:        fmt.Sprintf("%d", fs.counter),
+		records[i] = URLData{
+			UserID:      userID,
 			ShortURL:    item.ShortURL,
 			OriginalURL: item.OriginalURL,
 		}
@@ -110,7 +111,6 @@ func (fs *FileStorage) loadFromFile() error {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	maxCounter := 0
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -118,26 +118,23 @@ func (fs *FileStorage) loadFromFile() error {
 			continue
 		}
 
-		var record URLRecord
+		var record URLData
 		if err := json.Unmarshal([]byte(line), &record); err != nil {
 			continue
 		}
 
-		fs.data[record.ShortURL] = record.OriginalURL
-
-		var uuid int
-		if _, err := fmt.Sscanf(record.UUID, "%d", &uuid); err == nil {
-			if uuid > maxCounter {
-				maxCounter = uuid
-			}
+		fs.data[record.ShortURL] = URLData{
+			ShortURL:    record.ShortURL,
+			OriginalURL: record.OriginalURL,
+			UserID:      record.UserID,
 		}
+
 	}
 
-	fs.counter = maxCounter
 	return scanner.Err()
 }
 
-func (fs *FileStorage) appendToFile(record URLRecord) error {
+func (fs *FileStorage) appendToFile(record URLData) error {
 	file, err := os.OpenFile(fs.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err
@@ -153,7 +150,7 @@ func (fs *FileStorage) appendToFile(record URLRecord) error {
 	return err
 }
 
-func (fs *FileStorage) appendBatchToFile(records []URLRecord) error {
+func (fs *FileStorage) appendBatchToFile(records []URLData) error {
 	file, err := os.OpenFile(fs.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err

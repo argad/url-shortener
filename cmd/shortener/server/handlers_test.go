@@ -105,7 +105,7 @@ func TestServerHandleGetURL(t *testing.T) {
 			method: http.MethodGet,
 			urlID:  "testid123",
 			setupStorage: func(s storage.Storage) {
-				s.SaveURL("http://example.com", "testid123")
+				s.SaveURL("http://example.com", "testid123", "")
 			},
 			expectedStatus: http.StatusTemporaryRedirect,
 			expectedURL:    "http://example.com",

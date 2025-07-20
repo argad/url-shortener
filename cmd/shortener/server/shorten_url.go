@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/argad/url-shortener/cmd/shortener/middleware"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"go.uber.org/zap"
 	"io"
@@ -14,13 +15,15 @@ import (
 // POST create shortener /
 func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 	originalURL, err := s.readAndValidateURL(r)
+	userID, _ := middleware.GetUserID(r.Context())
+
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	id := generateID()
-	urlKey, err := s.storage.SaveURL(originalURL, id)
+	urlKey, err := s.storage.SaveURL(originalURL, id, userID)
 	if err != nil {
 		s.handleSaveURLError(w, err)
 		return

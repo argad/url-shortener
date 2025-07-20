@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/argad/url-shortener/cmd/shortener/middleware"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"go.uber.org/zap"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 )
 
 func (s *Server) handleAPIShortenBatch(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.GetUserID(r.Context())
 	if err := s.validateBatchRequestMethod(r); err != nil {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -27,7 +29,7 @@ func (s *Server) handleAPIShortenBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.storage.SaveBatch(batchData)
+	results, err := s.storage.SaveBatch(batchData, userID)
 	if err != nil {
 		s.logger.Error("Failed to save batch URLs", zap.Error(err))
 		http.Error(w, "Error saving URLs", http.StatusInternalServerError)

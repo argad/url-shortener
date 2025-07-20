@@ -3,38 +3,68 @@ package storage
 import "fmt"
 
 type InMemoryStorage struct {
-	data map[string]string
+	data map[string]URLData
 }
 
 func NewInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{
-		data: make(map[string]string),
+		data: make(map[string]URLData),
 	}
 }
 
-func (s *InMemoryStorage) SaveURL(url string, key string) (string, error) {
+func (s *InMemoryStorage) SaveURL(url string, key string, userID string) (string, error) {
 	if url == "" {
 		return "", fmt.Errorf("url cannot be empty")
 	}
 
 	//id := fmt.Sprintf("%d", len(s.data))
-	s.data[key] = url
+	s.data[key] = URLData{
+		ShortURL:    key,
+		OriginalURL: url,
+		UserID:      userID,
+	}
+
 	return key, nil
 }
 
 func (s *InMemoryStorage) GetURL(id string) (string, error) {
-	url, exists := s.data[id]
-	if !exists {
-		return "", fmt.Errorf("url with id %s not found", id)
+
+	if urlData, exists := s.data[id]; exists {
+		return urlData.OriginalURL, nil
 	}
-	return url, nil
+
+	return "", fmt.Errorf("URL not found")
+
 }
 
-func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
+func (s *InMemoryStorage) GetUserURLs(userID string) ([]URLData, error) {
+
+	var userURLs []URLData
+
+	for _, urlData := range s.data {
+		if urlData.UserID == userID {
+			userURLs = append(userURLs, urlData)
+		}
+	}
+
+	return userURLs, nil
+}
+
+func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error) {
 	results := make([]BatchURLData, len(batchData))
-	for i, item := range batchData {
-		s.data[item.ShortURL] = item.OriginalURL
-		results[i] = item
+	for _, item := range batchData {
+		s.data[item.ShortURL] = URLData{
+			ShortURL:    item.ShortURL,
+			OriginalURL: item.OriginalURL,
+			UserID:      userID,
+		}
+
+		results = append(results, BatchURLData{
+			CorrelationID: item.CorrelationID,
+			OriginalURL:   item.OriginalURL,
+			ShortURL:      item.ShortURL,
+		})
+
 	}
 
 	return results, nil

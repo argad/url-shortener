@@ -38,10 +38,12 @@ func (ps *PostgresStorage) createTables() error {
 		id SERIAL PRIMARY KEY,
 		short_url VARCHAR(255) UNIQUE NOT NULL,
 		original_url VARCHAR(255) NOT NULL,
+	    user_id VARCHAR(50) NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
 	CREATE UNIQUE INDEX IF NOT EXISTS idx_urls_original_url ON urls(original_url);
+	CREATE INDEX IF NOT EXISTS idx_urls_user_id ON urls(user_id);
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -51,14 +53,14 @@ func (ps *PostgresStorage) createTables() error {
 	return err
 }
 
-func (ps *PostgresStorage) SaveURL(originalURL, shortURL string) (string, error) {
+func (ps *PostgresStorage) SaveURL(originalURL, shortURL string, userID string) (string, error) {
 	if originalURL == "" {
 		return "", fmt.Errorf("url cannot be empty")
 	}
 
 	query := `
-	INSERT INTO urls (short_url, original_url) 
-	VALUES ($1, $2) 
+	INSERT INTO urls (short_url, original_url, user_id) 
+	VALUES ($1, $2, $3) 
 	ON CONFLICT (original_url) 
 	DO NOTHING
 	RETURNING short_url;
@@ -68,7 +70,7 @@ func (ps *PostgresStorage) SaveURL(originalURL, shortURL string) (string, error)
 	defer cancel()
 
 	var returnedShortURL string
-	err := ps.db.QueryRow(ctx, query, shortURL, originalURL).Scan(&returnedShortURL)
+	err := ps.db.QueryRow(ctx, query, shortURL, originalURL, userID).Scan(&returnedShortURL)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			selectQuery := `SELECT short_url FROM urls WHERE original_url = $1`
@@ -107,7 +109,7 @@ func (ps *PostgresStorage) GetURL(shortURL string) (string, error) {
 	return url, nil
 }
 
-func (ps *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, error) {
+func (ps *PostgresStorage) SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error) {
 	if err := ps.validateBatchData(batchData); err != nil {
 		return nil, err
 	}
@@ -121,7 +123,7 @@ func (ps *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, 
 	}
 	defer tx.Rollback(ctx)
 
-	batch := ps.prepareBatch(batchData)
+	batch := ps.prepareBatch(batchData, userID)
 	results := tx.SendBatch(ctx, batch)
 
 	returnedData, err := ps.processBatchResults(results, batchData)
@@ -136,6 +138,34 @@ func (ps *PostgresStorage) SaveBatch(batchData []BatchURLData) ([]BatchURLData, 
 	}
 
 	return returnedData, nil
+}
+
+func (ps *PostgresStorage) GetUserURLs(userID string) ([]URLData, error) {
+	query := `SELECT short_url, original_url, user_id FROM urls WHERE user_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	rows, err := ps.db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user URLs: %w", err)
+	}
+	defer rows.Close()
+
+	var userURLs []URLData
+	for rows.Next() {
+		var urlData URLData
+		if err := rows.Scan(&urlData.ShortURL, &urlData.OriginalURL, &urlData.UserID); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		userURLs = append(userURLs, urlData)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return userURLs, nil
 }
 
 func (ps *PostgresStorage) validateBatchData(batchData []BatchURLData) error {
@@ -154,12 +184,12 @@ func (ps *PostgresStorage) beginTransaction(ctx context.Context) (pgx.Tx, error)
 }
 
 // не слишком мелко?
-func (ps *PostgresStorage) prepareBatch(batchData []BatchURLData) *pgx.Batch {
+func (ps *PostgresStorage) prepareBatch(batchData []BatchURLData, userID string) *pgx.Batch {
 	batch := &pgx.Batch{}
 	query := ps.getBatchInsertQuery()
 
 	for _, item := range batchData {
-		batch.Queue(query, item.ShortURL, item.OriginalURL)
+		batch.Queue(query, item.ShortURL, item.OriginalURL, userID)
 	}
 
 	return batch
@@ -167,8 +197,8 @@ func (ps *PostgresStorage) prepareBatch(batchData []BatchURLData) *pgx.Batch {
 
 func (ps *PostgresStorage) getBatchInsertQuery() string {
 	return `
-		INSERT INTO urls (short_url, original_url) 
-		VALUES ($1, $2) 
+		INSERT INTO urls (short_url, original_url, user_id) 
+		VALUES ($1, $2, $3) 
 		ON CONFLICT (original_url) 
 		DO UPDATE SET original_url = EXCLUDED.original_url
 		RETURNING short_url;

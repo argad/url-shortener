@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argad/url-shortener/cmd/shortener/middleware"
 	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"go.uber.org/zap"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 )
 
 func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.GetUserID(r.Context())
 	if err := s.validateJSONContentType(r); err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
@@ -24,7 +26,7 @@ func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := generateID()
-	urlKey, err := s.storage.SaveURL(req.URL, id)
+	urlKey, err := s.storage.SaveURL(req.URL, id, userID)
 	if err != nil {
 		s.handleJSONSaveURLError(w, req.URL, id, err)
 		return
