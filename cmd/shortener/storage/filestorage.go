@@ -49,6 +49,8 @@ func (fs *FileStorage) SaveURL(originalURL, shortURL string, userID string) (str
 		OriginalURL: originalURL,
 	}
 
+	fs.data[shortURL] = record
+
 	if err := fs.appendToFile(record); err != nil {
 		return "", err
 	}
