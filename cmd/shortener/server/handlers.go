@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
+	"github.com/argad/url-shortener/cmd/shortener/storage"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"net/http"
@@ -52,6 +54,13 @@ func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request) {
 
 	url, err := s.storage.GetURL(id)
 	if err != nil {
+
+		var URLDeletedError *storage.URLDeletedError
+		if errors.As(err, &URLDeletedError) {
+			w.WriteHeader(http.StatusGone) // 410
+			return
+		}
+
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}

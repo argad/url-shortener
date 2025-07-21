@@ -21,6 +21,7 @@ func (m *MockStorage) SaveURL(url string, key string, userID string) (string, er
 		ShortURL:    key,
 		OriginalURL: url,
 		UserID:      userID,
+		DeletedFlag: false,
 	}
 	return key, nil
 }
@@ -30,6 +31,10 @@ func (m *MockStorage) GetURL(id string) (string, error) {
 	if !exists {
 		return "", fmt.Errorf("url with id %s not found", id)
 	}
+	if url.DeletedFlag {
+		return "", &URLDeletedError{ShortURL: id}
+	}
+
 	return url.OriginalURL, nil
 }
 
@@ -40,6 +45,7 @@ func (m *MockStorage) SaveBatch(batchData []BatchURLData, userID string) ([]Batc
 			ShortURL:    item.ShortURL,
 			OriginalURL: item.OriginalURL,
 			UserID:      userID,
+			DeletedFlag: false,
 		}
 
 		results = append(results, BatchURLData{
@@ -63,4 +69,16 @@ func (m *MockStorage) GetUserURLs(userID string) ([]URLData, error) {
 	}
 
 	return userURLs, nil
+}
+
+func (m *MockStorage) DeleteURLs(shortURLs []string, userID string) error {
+	for _, shortURL := range shortURLs {
+		if urlData, exists := m.data[shortURL]; exists {
+			if urlData.UserID == userID {
+				urlData.DeletedFlag = true
+				m.data[shortURL] = urlData
+			}
+		}
+	}
+	return nil
 }

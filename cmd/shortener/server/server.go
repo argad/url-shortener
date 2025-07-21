@@ -49,4 +49,6 @@ func (s *Server) routes() {
 	s.Router.Post("/api/shorten/batch", s.handleAPIShortenBatch)
 	s.Router.With(middleware.RequireAuth).Get("/api/user/urls", s.handleGetUserURLs)
 
+	s.Router.With(middleware.RequireAuth).Delete("/api/user/urls", NewDeleteURLsHandler(s.storage).HandleDeleteURLs)
+
 }

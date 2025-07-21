@@ -47,6 +47,7 @@ func (fs *FileStorage) SaveURL(originalURL, shortURL string, userID string) (str
 		UserID:      userID,
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
+		DeletedFlag: false,
 	}
 
 	fs.data[shortURL] = record
@@ -66,6 +67,11 @@ func (fs *FileStorage) GetURL(shortURL string) (string, error) {
 	if !exists {
 		return "", fmt.Errorf("url with id %s not found", shortURL)
 	}
+
+	if url.DeletedFlag {
+		return "", &URLDeletedError{ShortURL: shortURL}
+	}
+
 	return url.OriginalURL, nil
 }
 
@@ -94,6 +100,7 @@ func (fs *FileStorage) SaveBatch(batchData []BatchURLData, userID string) ([]Bat
 			UserID:      userID,
 			ShortURL:    item.ShortURL,
 			OriginalURL: item.OriginalURL,
+			DeletedFlag: false,
 		}
 		results[i] = item
 	}
@@ -160,6 +167,51 @@ func (fs *FileStorage) appendBatchToFile(records []URLData) error {
 	defer file.Close()
 
 	for _, record := range records {
+		data, err := json.Marshal(record)
+		if err != nil {
+			return err
+		}
+
+		if _, err := file.Write(append(data, '\n')); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (fs *FileStorage) DeleteURLs(shortURLs []string, userID string) error {
+	fs.mutex.Lock()
+	defer fs.mutex.Unlock()
+
+	updated := false
+	for _, shortURL := range shortURLs {
+		if urlData, exists := fs.data[shortURL]; exists {
+			if urlData.UserID == userID {
+				urlData.DeletedFlag = true
+				fs.data[shortURL] = urlData
+				updated = true
+			}
+		}
+	}
+
+	if updated {
+		if err := fs.rewriteFile(); err != nil {
+			return fmt.Errorf("failed to update file after deletion: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (fs *FileStorage) rewriteFile() error {
+	file, err := os.OpenFile(fs.filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for _, record := range fs.data {
 		data, err := json.Marshal(record)
 		if err != nil {
 			return err

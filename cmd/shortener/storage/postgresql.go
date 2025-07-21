@@ -39,6 +39,7 @@ func (ps *PostgresStorage) createTables() error {
 		short_url VARCHAR(255) UNIQUE NOT NULL,
 		original_url VARCHAR(255) NOT NULL,
 	    user_id VARCHAR(50) NOT NULL,
+	    is_deleted BOOLEAN DEFAULT FALSE,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -90,20 +91,26 @@ func (ps *PostgresStorage) SaveURL(originalURL, shortURL string, userID string) 
 func (ps *PostgresStorage) GetURL(shortURL string) (string, error) {
 
 	query := `
-	SELECT original_url FROM urls WHERE short_url = $1;
+	SELECT original_url, is_deleted FROM urls WHERE short_url = $1;
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var url string
-	err := ps.db.QueryRow(ctx, query, shortURL).Scan(&url)
+	var isDeleted bool
+	err := ps.db.QueryRow(ctx, query, shortURL).Scan(&url, &isDeleted)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("url with id %s not found", shortURL)
 		}
 
 		return "", fmt.Errorf("failed to get URL")
+	}
+
+	if isDeleted {
+		return "", &URLDeletedError{ShortURL: shortURL}
+
 	}
 
 	return url, nil
@@ -241,5 +248,33 @@ func (ps *PostgresStorage) commitTransaction(ctx context.Context, tx pgx.Tx) err
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
+	return nil
+}
+
+func (ps *PostgresStorage) DeleteURLs(shortURLs []string, userID string) error {
+	if len(shortURLs) == 0 {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	batch := &pgx.Batch{}
+	query := `UPDATE urls SET is_deleted = true WHERE short_url = $1 AND user_id = $2`
+
+	for _, shortURL := range shortURLs {
+		batch.Queue(query, shortURL, userID)
+	}
+
+	results := ps.db.SendBatch(ctx, batch)
+	defer results.Close()
+
+	for i := 0; i < len(shortURLs); i++ {
+		_, err := results.Exec()
+		if err != nil {
+			return fmt.Errorf("failed to delete URL at index %d: %w", i, err)
+		}
+	}
+
 	return nil
 }

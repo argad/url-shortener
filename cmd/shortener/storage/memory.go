@@ -22,6 +22,7 @@ func (s *InMemoryStorage) SaveURL(url string, key string, userID string) (string
 		ShortURL:    key,
 		OriginalURL: url,
 		UserID:      userID,
+		DeletedFlag: false,
 	}
 
 	return key, nil
@@ -30,6 +31,11 @@ func (s *InMemoryStorage) SaveURL(url string, key string, userID string) (string
 func (s *InMemoryStorage) GetURL(id string) (string, error) {
 
 	if urlData, exists := s.data[id]; exists {
+
+		if urlData.DeletedFlag {
+			return "", &URLDeletedError{ShortURL: id}
+		}
+
 		return urlData.OriginalURL, nil
 	}
 
@@ -57,6 +63,7 @@ func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData, userID string) ([]
 			ShortURL:    item.ShortURL,
 			OriginalURL: item.OriginalURL,
 			UserID:      userID,
+			DeletedFlag: false,
 		}
 
 		results = append(results, BatchURLData{
@@ -68,4 +75,16 @@ func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData, userID string) ([]
 	}
 
 	return results, nil
+}
+
+func (s *InMemoryStorage) DeleteURLs(shortURLs []string, userID string) error {
+	for _, shortURL := range shortURLs {
+		if urlData, exists := s.data[shortURL]; exists {
+			if urlData.UserID == userID {
+				urlData.DeletedFlag = true
+				s.data[shortURL] = urlData
+			}
+		}
+	}
+	return nil
 }
