@@ -39,7 +39,7 @@ func (m *MockStorage) GetURL(id string) (string, error) {
 }
 
 func (m *MockStorage) SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error) {
-	results := make([]BatchURLData, len(batchData))
+	var results []BatchURLData
 	for _, item := range batchData {
 		m.data[item.ShortURL] = URLData{
 			ShortURL:    item.ShortURL,

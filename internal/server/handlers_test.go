@@ -3,7 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/argad/url-shortener/cmd/shortener/storage"
+	storage2 "github.com/argad/url-shortener/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -58,7 +58,7 @@ func TestServerHandleShorten(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock storage
-			mockStorage := storage.NewMockStorage()
+			mockStorage := storage2.NewMockStorage()
 			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
 			if err != nil {
 				t.Fatalf("Failed to create server: %v", err)
@@ -96,7 +96,7 @@ func TestServerHandleGetURL(t *testing.T) {
 		name           string
 		method         string
 		urlID          string
-		setupStorage   func(storage.Storage)
+		setupStorage   func(storage2.Storage)
 		expectedStatus int
 		expectedURL    string // now checking the URL in the Location header
 	}{
@@ -104,7 +104,7 @@ func TestServerHandleGetURL(t *testing.T) {
 			name:   "Successful URL retrieval",
 			method: http.MethodGet,
 			urlID:  "testid123",
-			setupStorage: func(s storage.Storage) {
+			setupStorage: func(s storage2.Storage) {
 				s.SaveURL("http://example.com", "testid123", "")
 			},
 			expectedStatus: http.StatusTemporaryRedirect,
@@ -114,14 +114,14 @@ func TestServerHandleGetURL(t *testing.T) {
 			name:           "Invalid method",
 			method:         http.MethodPost,
 			urlID:          "testid123",
-			setupStorage:   func(s storage.Storage) {},
+			setupStorage:   func(s storage2.Storage) {},
 			expectedStatus: http.StatusMethodNotAllowed,
 		},
 		{
 			name:           "URL not found",
 			method:         http.MethodGet,
 			urlID:          "nonexistent",
-			setupStorage:   func(s storage.Storage) {},
+			setupStorage:   func(s storage2.Storage) {},
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
@@ -129,7 +129,7 @@ func TestServerHandleGetURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a mock storage
-			mockStorage := storage.NewMockStorage()
+			mockStorage := storage2.NewMockStorage()
 
 			// Configure storage for the test
 			tt.setupStorage(mockStorage)
@@ -220,7 +220,7 @@ func TestServerHandleAPIShortenURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStorage := storage.NewMockStorage()
+			mockStorage := storage2.NewMockStorage()
 			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
 			if err != nil {
 				t.Fatalf("Failed to create server: %v", err)

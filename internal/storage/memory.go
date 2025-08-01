@@ -57,7 +57,7 @@ func (s *InMemoryStorage) GetUserURLs(userID string) ([]URLData, error) {
 }
 
 func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error) {
-	results := make([]BatchURLData, len(batchData))
+	var results []BatchURLData
 	for _, item := range batchData {
 		s.data[item.ShortURL] = URLData{
 			ShortURL:    item.ShortURL,

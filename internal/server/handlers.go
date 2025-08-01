@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"github.com/argad/url-shortener/cmd/shortener/storage"
+	"github.com/argad/url-shortener/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"net/http"

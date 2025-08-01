@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"context"
-	"github.com/argad/url-shortener/cmd/shortener/auth"
+	"github.com/argad/url-shortener/internal/auth"
 	"net/http"
 	"time"
 )

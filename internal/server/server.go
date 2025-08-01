@@ -2,9 +2,9 @@ package server
 
 import (
 	"fmt"
-	"github.com/argad/url-shortener/cmd/shortener/database"
-	"github.com/argad/url-shortener/cmd/shortener/middleware"
-	"github.com/argad/url-shortener/cmd/shortener/storage"
+	"github.com/argad/url-shortener/internal/database"
+	middleware2 "github.com/argad/url-shortener/internal/middleware"
+	"github.com/argad/url-shortener/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -32,9 +32,9 @@ func NewServer(storageInterface storage.Storage, baseURL string, db *database.Da
 		db:      db,
 	}
 
-	s.Router.Use(middleware.LoggingMiddleware(s.logger))
-	s.Router.Use(middleware.GzipMiddleware)
-	s.Router.Use(middleware.AuthMiddleware)
+	s.Router.Use(middleware2.LoggingMiddleware(s.logger))
+	s.Router.Use(middleware2.GzipMiddleware)
+	s.Router.Use(middleware2.AuthMiddleware)
 
 	s.routes()
 
@@ -47,8 +47,8 @@ func (s *Server) routes() {
 	s.Router.Post("/api/shorten", s.handleAPIShortenURL)
 	s.Router.Get("/{id}", s.handleGetURL)
 	s.Router.Post("/api/shorten/batch", s.handleAPIShortenBatch)
-	s.Router.With(middleware.RequireAuth).Get("/api/user/urls", s.handleGetUserURLs)
+	s.Router.With(middleware2.RequireAuth).Get("/api/user/urls", s.handleGetUserURLs)
 
-	s.Router.With(middleware.RequireAuth).Delete("/api/user/urls", NewDeleteURLsHandler(s.storage).HandleDeleteURLs)
+	s.Router.With(middleware2.RequireAuth).Delete("/api/user/urls", NewDeleteURLsHandler(s.storage).HandleDeleteURLs)
 
 }

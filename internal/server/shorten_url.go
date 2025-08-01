@@ -3,8 +3,8 @@ package server
 import (
 	"errors"
 	"fmt"
-	"github.com/argad/url-shortener/cmd/shortener/middleware"
-	"github.com/argad/url-shortener/cmd/shortener/storage"
+	"github.com/argad/url-shortener/internal/middleware"
+	"github.com/argad/url-shortener/internal/storage"
 	"go.uber.org/zap"
 	"io"
 	"net/http"

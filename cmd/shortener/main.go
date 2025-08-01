@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/argad/url-shortener/cmd/shortener/config"
-	"github.com/argad/url-shortener/cmd/shortener/factory"
-	"github.com/argad/url-shortener/cmd/shortener/server"
+	"github.com/argad/url-shortener/internal/config"
+	"github.com/argad/url-shortener/internal/factory"
+	"github.com/argad/url-shortener/internal/server"
 	"go.uber.org/zap"
 	"log"
 	"net/http"

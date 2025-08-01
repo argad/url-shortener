@@ -2,7 +2,7 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/argad/url-shortener/cmd/shortener/middleware"
+	"github.com/argad/url-shortener/internal/middleware"
 	"go.uber.org/zap"
 	"net/http"
 )

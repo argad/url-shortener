@@ -2,9 +2,9 @@ package factory
 
 import (
 	"fmt"
-	"github.com/argad/url-shortener/cmd/shortener/config"
-	"github.com/argad/url-shortener/cmd/shortener/database"
-	"github.com/argad/url-shortener/cmd/shortener/storage"
+	"github.com/argad/url-shortener/internal/config"
+	"github.com/argad/url-shortener/internal/database"
+	storage2 "github.com/argad/url-shortener/internal/storage"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +18,7 @@ type Logger interface {
 }
 
 type StorageResult struct {
-	Storage storage.Storage
+	Storage storage2.Storage
 	DB      *database.Database
 }
 
@@ -58,7 +58,7 @@ func (sf *StorageFactory) createPostgresStorage(dsn string) (*StorageResult, err
 		return nil, fmt.Errorf("failed to initialize PostgreSQL database: %w", err)
 	}
 
-	postgresStorage, err := storage.NewPostgresStorage(db.GetPool())
+	postgresStorage, err := storage2.NewPostgresStorage(db.GetPool())
 	if err != nil {
 		sf.logger.Error(fmt.Sprintf("Failed to create PostgreSQL storage: %v", err))
 		db.Close()
@@ -75,7 +75,7 @@ func (sf *StorageFactory) createPostgresStorage(dsn string) (*StorageResult, err
 func (sf *StorageFactory) createFileStorage(filePath string) (*StorageResult, error) {
 	sf.logger.Info("Attempting to use file storage...")
 
-	fileStorage, err := storage.NewFileStorage(filePath)
+	fileStorage, err := storage2.NewFileStorage(filePath)
 	if err != nil {
 		sf.logger.Error(fmt.Sprintf("Failed to create file storage: %v", err))
 		return nil, fmt.Errorf("failed to create file storage: %w", err)
@@ -91,7 +91,7 @@ func (sf *StorageFactory) createFileStorage(filePath string) (*StorageResult, er
 func (sf *StorageFactory) createInMemoryStorage() (*StorageResult, error) {
 	sf.logger.Info("Using in-memory storage")
 
-	memoryStorage := storage.NewInMemoryStorage()
+	memoryStorage := storage2.NewInMemoryStorage()
 	return &StorageResult{
 		Storage: memoryStorage,
 		DB:      nil,

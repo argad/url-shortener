@@ -2,13 +2,14 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/argad/url-shortener/cmd/shortener/middleware"
+	"github.com/argad/url-shortener/internal/middleware"
+	"github.com/argad/url-shortener/internal/storage"
 	"net/http"
 	"sync"
 )
 
 type DeleteURLsHandler struct {
-	storage         Storage
+	storage         storage.Storage
 	deletionChannel chan DeletionTask
 	workerPool      sync.WaitGroup
 }
@@ -18,14 +19,10 @@ type DeletionTask struct {
 	UserID string
 }
 
-type Storage interface {
-	DeleteURLs(shortURLs []string, userID string) error
-}
-
-func NewDeleteURLsHandler(storage Storage) *DeleteURLsHandler {
+func NewDeleteURLsHandler(storage storage.Storage) *DeleteURLsHandler {
 	handler := &DeleteURLsHandler{
 		storage:         storage,
-		deletionChannel: make(chan DeletionTask, 100), // Буфер для задач
+		deletionChannel: make(chan DeletionTask, 100),
 	}
 
 	for i := 0; i < 5; i++ {
