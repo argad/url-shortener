@@ -94,7 +94,7 @@ func setDefaults() *Config {
 		ServerAddress:   ":8080",
 		BaseShortURL:    "http://localhost:8080",
 		FileStoragePath: "",
-		DatabaseDSN:     "postgresql://postgres:rfvtgbrfv@localhost:5432/postgres?sslmode=disable",
+		DatabaseDSN:     "",
 		JWTSecret:       "test-phrase",
 	}
 }
