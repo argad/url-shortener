@@ -1,11 +1,11 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/argad/url-shortener/internal/middleware"
 	"github.com/argad/url-shortener/internal/storage"
+	json "github.com/json-iterator/go"
 	"go.uber.org/zap"
 	"net/http"
 	"net/url"
