@@ -2,14 +2,13 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"net/http"
 	"time"
 
 	"github.com/argad/url-shortener/internal/storage"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -41,13 +40,7 @@ type BatchURLResponse struct {
 
 func generateID() string {
 
-	b := make([]byte, 8)
-	_, err := rand.Read(b)
-	if err != nil {
-		panic(err)
-	}
-
-	return base64.RawURLEncoding.EncodeToString(b)[:8]
+	return uuid.New().String()
 }
 
 // handleGetURL handles the redirection of a shortened URL.
