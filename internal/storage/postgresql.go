@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"time"
 )
 
 // URLConflictError is an error that occurs when a URL already exists in the storage.
@@ -15,6 +16,7 @@ type URLConflictError struct {
 	ExistingShortURL string
 }
 
+// Error returns the error message.
 func (e *URLConflictError) Error() string {
 	return fmt.Sprintf("URL already exists: %s", e.ExistingShortURL)
 }

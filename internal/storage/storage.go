@@ -23,6 +23,7 @@ type URLDeletedError struct {
 	ShortURL string
 }
 
+// Error returns the error message.
 func (e *URLDeletedError) Error() string {
 	return fmt.Sprintf("URL %s has been deleted", e.ShortURL)
 }
