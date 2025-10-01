@@ -13,11 +13,13 @@ type responseWriter struct {
 	size   int
 }
 
+// WriteHeader wraps the original WriteHeader to capture the status code.
 func (rw *responseWriter) WriteHeader(status int) {
 	rw.status = status
 	rw.ResponseWriter.WriteHeader(status)
 }
 
+// Write wraps the original Write to capture the response size.
 func (rw *responseWriter) Write(b []byte) (int, error) {
 	size, err := rw.ResponseWriter.Write(b)
 	rw.size += size

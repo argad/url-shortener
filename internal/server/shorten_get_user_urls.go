@@ -2,9 +2,10 @@ package server
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/argad/url-shortener/internal/middleware"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 // UserURLResponse defines the structure for a single URL returned to a user.
@@ -16,7 +17,6 @@ type UserURLResponse struct {
 
 // handleGetUserURLs retrieves all URLs associated with the authenticated user.
 // It fetches the URLs from the storage and returns them as a JSON array.
-// If the user has no URLs, it returns a No Content status.
 func (s *Server) handleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r.Context())
 	if !ok || userID == "" {
