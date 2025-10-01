@@ -15,6 +15,7 @@ type DeleteURLsHandler struct {
 	storage         storage.Storage
 	deletionChannel chan DeletionTask
 	workerPool      sync.WaitGroup
+	numWorkers      int
 }
 
 // DeletionTask represents a task for deleting a batch of URLs for a specific user.
@@ -25,11 +26,15 @@ type DeletionTask struct {
 
 // NewDeleteURLsHandler creates a new DeleteURLsHandler and starts a pool of deletion workers.
 func NewDeleteURLsHandler(storage storage.Storage) *DeleteURLsHandler {
+	const numWorkers = 5
+
 	handler := &DeleteURLsHandler{
 		storage:         storage,
 		deletionChannel: make(chan DeletionTask, 100),
+		numWorkers:      numWorkers,
 	}
 
+	handler.workerPool.Add(numWorkers)
 	for i := 0; i < 5; i++ {
 		go handler.deletionWorker()
 	}
@@ -70,6 +75,7 @@ func (h *DeleteURLsHandler) HandleDeleteURLs(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *DeleteURLsHandler) deletionWorker() {
+	defer h.workerPool.Done()
 	for task := range h.deletionChannel {
 		if err := h.storage.DeleteURLs(task.URLs, task.UserID); err != nil {
 			println("Failed to delete URLs:", err.Error())
@@ -80,4 +86,5 @@ func (h *DeleteURLsHandler) deletionWorker() {
 // Close closes the deletion channel.
 func (h *DeleteURLsHandler) Close() {
 	close(h.deletionChannel)
+	h.workerPool.Wait()
 }

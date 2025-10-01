@@ -5,11 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"net/http"
+	"time"
+
 	"github.com/argad/url-shortener/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 // ShortenRequest defines the structure for a request to shorten a URL.
@@ -54,16 +55,14 @@ func generateID() string {
 // and redirects the client to it. If the URL is not found or has been deleted,
 // it returns an appropriate HTTP error.
 func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request) {
+	shortURL := chi.URLParam(r, "id")
 
-	//test
-	id := chi.URLParam(r, "id")
-
-	if id == "" {
+	if shortURL == "" {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	url, err := s.storage.GetURL(id)
+	url, err := s.storage.GetURL(shortURL)
 	if err != nil {
 
 		var URLDeletedError *storage.URLDeletedError

@@ -1,9 +1,13 @@
 package storage
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // InMemoryStorage is a storage implementation that uses an in-memory map to store URL data.
 type InMemoryStorage struct {
+	mu   sync.RWMutex
 	data map[string]URLData
 }
 
@@ -16,6 +20,9 @@ func NewInMemoryStorage() *InMemoryStorage {
 
 // SaveURL saves a new URL to the in-memory storage.
 func (s *InMemoryStorage) SaveURL(url string, key string, userID string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if url == "" {
 		return "", fmt.Errorf("url cannot be empty")
 	}
@@ -33,6 +40,8 @@ func (s *InMemoryStorage) SaveURL(url string, key string, userID string) (string
 
 // GetURL retrieves a URL from the in-memory storage.
 func (s *InMemoryStorage) GetURL(id string) (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	if urlData, exists := s.data[id]; exists {
 
@@ -49,6 +58,8 @@ func (s *InMemoryStorage) GetURL(id string) (string, error) {
 
 // GetUserURLs retrieves all URLs for a given user ID from the in-memory storage.
 func (s *InMemoryStorage) GetUserURLs(userID string) ([]URLData, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	var userURLs []URLData
 
@@ -63,6 +74,9 @@ func (s *InMemoryStorage) GetUserURLs(userID string) ([]URLData, error) {
 
 // SaveBatch saves a batch of URLs to the in-memory storage.
 func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	var results []BatchURLData
 	for _, item := range batchData {
 		s.data[item.ShortURL] = URLData{
@@ -85,6 +99,9 @@ func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData, userID string) ([]
 
 // DeleteURLs deletes a batch of URLs from the in-memory storage.
 func (s *InMemoryStorage) DeleteURLs(shortURLs []string, userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for _, shortURL := range shortURLs {
 		if urlData, exists := s.data[shortURL]; exists {
 			if urlData.UserID == userID {

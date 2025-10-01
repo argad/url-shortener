@@ -2,6 +2,7 @@ package factory
 
 import (
 	"fmt"
+
 	"github.com/argad/url-shortener/internal/config"
 	"github.com/argad/url-shortener/internal/database"
 	storage2 "github.com/argad/url-shortener/internal/storage"
@@ -11,12 +12,6 @@ import (
 // StorageFactory is a factory for creating storage instances.
 type StorageFactory struct {
 	logger *zap.Logger
-}
-
-// Logger is an interface for logging.
-type Logger interface {
-	Info(msg string)
-	Error(msg string)
 }
 
 // StorageResult is the result of creating a storage instance.
