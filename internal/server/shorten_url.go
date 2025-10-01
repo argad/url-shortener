@@ -12,7 +12,10 @@ import (
 	"strings"
 )
 
-// POST create shortener /
+// handleShorten handles the creation of a new shortened URL.
+// It reads the original URL from the request body, generates a unique ID,
+// saves the URL to the storage, and returns the shortened URL in the response.
+// If a URL conflict occurs, it returns the existing shortened URL with a conflict status.
 func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 	originalURL, err := s.readAndValidateURL(r)
 	userID, _ := middleware.GetUserID(r.Context())

@@ -2,16 +2,19 @@ package storage
 
 import "fmt"
 
+// InMemoryStorage is a storage implementation that uses an in-memory map to store URL data.
 type InMemoryStorage struct {
 	data map[string]URLData
 }
 
+// NewInMemoryStorage creates a new InMemoryStorage.
 func NewInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{
 		data: make(map[string]URLData),
 	}
 }
 
+// SaveURL saves a new URL to the in-memory storage.
 func (s *InMemoryStorage) SaveURL(url string, key string, userID string) (string, error) {
 	if url == "" {
 		return "", fmt.Errorf("url cannot be empty")
@@ -28,6 +31,7 @@ func (s *InMemoryStorage) SaveURL(url string, key string, userID string) (string
 	return key, nil
 }
 
+// GetURL retrieves a URL from the in-memory storage.
 func (s *InMemoryStorage) GetURL(id string) (string, error) {
 
 	if urlData, exists := s.data[id]; exists {
@@ -43,6 +47,7 @@ func (s *InMemoryStorage) GetURL(id string) (string, error) {
 
 }
 
+// GetUserURLs retrieves all URLs for a given user ID from the in-memory storage.
 func (s *InMemoryStorage) GetUserURLs(userID string) ([]URLData, error) {
 
 	var userURLs []URLData
@@ -56,6 +61,7 @@ func (s *InMemoryStorage) GetUserURLs(userID string) ([]URLData, error) {
 	return userURLs, nil
 }
 
+// SaveBatch saves a batch of URLs to the in-memory storage.
 func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error) {
 	var results []BatchURLData
 	for _, item := range batchData {
@@ -77,6 +83,7 @@ func (s *InMemoryStorage) SaveBatch(batchData []BatchURLData, userID string) ([]
 	return results, nil
 }
 
+// DeleteURLs deletes a batch of URLs from the in-memory storage.
 func (s *InMemoryStorage) DeleteURLs(shortURLs []string, userID string) error {
 	for _, shortURL := range shortURLs {
 		if urlData, exists := s.data[shortURL]; exists {

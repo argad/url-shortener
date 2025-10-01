@@ -10,6 +10,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// Server represents the HTTP server for the URL shortener application.
+// It holds all the dependencies required for the server to run, including
+// the storage backend, router, base URL for shortened links, logger, and database connection.
 type Server struct {
 	storage storage.Storage
 	Router  *chi.Mux
@@ -18,6 +21,10 @@ type Server struct {
 	db      *database.Database
 }
 
+// NewServer creates and configures a new Server instance.
+// It initializes the server with the given storage backend, base URL for shortened links,
+// and a database connection. It also sets up the router with the necessary middleware and routes.
+// Returns the newly created Server or an error if initialization fails.
 func NewServer(storageInterface storage.Storage, baseURL string, db *database.Database) (*Server, error) {
 
 	logger, err := zap.NewProduction()

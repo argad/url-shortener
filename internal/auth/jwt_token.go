@@ -9,15 +9,20 @@ import (
 )
 
 const (
+	// CookieName is the name of the cookie used for user sessions.
 	CookieName = "user_session"
-	SecretKey  = "test-phrase"
+	// SecretKey is the secret key used to sign JWT tokens.
+	SecretKey = "test-phrase"
 )
 
+// Claims represents the JWT claims for the application.
+// It includes the user ID and standard registered claims.
 type Claims struct {
 	UserID string `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
+// GenerateUserID generates a new unique user ID.
 func GenerateUserID() (string, error) {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
@@ -27,6 +32,7 @@ func GenerateUserID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// CreateJWTToken creates a new JWT token for the given user ID.
 func CreateJWTToken(userID string) (string, error) {
 	claims := &Claims{
 		UserID: userID,
@@ -40,6 +46,7 @@ func CreateJWTToken(userID string) (string, error) {
 	return token.SignedString([]byte(SecretKey))
 }
 
+// VerifyJWTToken verifies the given JWT token string and returns the user ID if the token is valid.
 func VerifyJWTToken(tokenString string) (string, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

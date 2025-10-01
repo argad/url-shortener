@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// URLConflictError is an error that occurs when a URL already exists in the storage.
 type URLConflictError struct {
 	ExistingShortURL string
 }
@@ -18,10 +19,12 @@ func (e *URLConflictError) Error() string {
 	return fmt.Sprintf("URL already exists: %s", e.ExistingShortURL)
 }
 
+// PostgresStorage is a storage implementation that uses a PostgreSQL database.
 type PostgresStorage struct {
 	db *pgxpool.Pool
 }
 
+// NewPostgresStorage creates a new PostgresStorage.
 func NewPostgresStorage(db *pgxpool.Pool) (*PostgresStorage, error) {
 	storage := &PostgresStorage{db: db}
 
@@ -54,6 +57,7 @@ func (ps *PostgresStorage) createTables() error {
 	return err
 }
 
+// SaveURL saves a new URL to the PostgreSQL storage.
 func (ps *PostgresStorage) SaveURL(originalURL, shortURL string, userID string) (string, error) {
 	if originalURL == "" {
 		return "", fmt.Errorf("url cannot be empty")
@@ -88,6 +92,7 @@ func (ps *PostgresStorage) SaveURL(originalURL, shortURL string, userID string) 
 	return returnedShortURL, nil
 }
 
+// GetURL retrieves a URL from the PostgreSQL storage.
 func (ps *PostgresStorage) GetURL(shortURL string) (string, error) {
 
 	query := `
@@ -116,6 +121,7 @@ func (ps *PostgresStorage) GetURL(shortURL string) (string, error) {
 	return url, nil
 }
 
+// SaveBatch saves a batch of URLs to the PostgreSQL storage.
 func (ps *PostgresStorage) SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error) {
 	if err := ps.validateBatchData(batchData); err != nil {
 		return nil, err
@@ -147,6 +153,7 @@ func (ps *PostgresStorage) SaveBatch(batchData []BatchURLData, userID string) ([
 	return returnedData, nil
 }
 
+// GetUserURLs retrieves all URLs for a given user ID from the PostgreSQL storage.
 func (ps *PostgresStorage) GetUserURLs(userID string) ([]URLData, error) {
 	query := `SELECT short_url, original_url, user_id FROM urls WHERE user_id = $1`
 
@@ -251,6 +258,7 @@ func (ps *PostgresStorage) commitTransaction(ctx context.Context, tx pgx.Tx) err
 	return nil
 }
 
+// DeleteURLs deletes a batch of URLs from the PostgreSQL storage.
 func (ps *PostgresStorage) DeleteURLs(shortURLs []string, userID string) error {
 	if len(shortURLs) == 0 {
 		return nil

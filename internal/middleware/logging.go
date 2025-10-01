@@ -24,6 +24,7 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	return size, err
 }
 
+// LoggingMiddleware is a middleware that logs information about each HTTP request.
 func LoggingMiddleware(logger *zap.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

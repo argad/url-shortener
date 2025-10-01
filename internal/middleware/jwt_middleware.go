@@ -9,8 +9,11 @@ import (
 
 type contextKey string
 
+// UserIDKey is the key used to store the user ID in the request context.
 const UserIDKey contextKey = "userID"
 
+// AuthMiddleware is a middleware that handles user authentication.
+// It checks for a valid JWT token in the request cookie and creates a new user if one doesn't exist.
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var userID string
@@ -50,11 +53,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// GetUserID retrieves the user ID from the request context.
 func GetUserID(ctx context.Context) (string, bool) {
 	userID, ok := ctx.Value(UserIDKey).(string)
 	return userID, ok
 }
 
+// RequireAuth is a middleware that requires the user to be authenticated.
+// It checks for a valid user ID in the request context and returns an unauthorized error if one doesn't exist.
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := GetUserID(r.Context())

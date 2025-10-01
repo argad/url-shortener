@@ -8,7 +8,8 @@ import (
 	"strings"
 )
 
-// Config structure for storing configuration
+// Config defines the configuration parameters for the application.
+// It includes settings for the server, database, storage, and JWT authentication.
 type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS"`
 	BaseShortURL    string `env:"BASE_URL"`
@@ -17,7 +18,10 @@ type Config struct {
 	JWTSecret       string `env:"JWT_SECRET"`
 }
 
-// InitConfig function to initialize the configuration using flags
+// InitConfig initializes the application's configuration.
+// It reads configuration from environment variables and command-line flags,
+// sets default values, and validates the configuration.
+// Returns a populated Config struct or an error if initialization fails.
 func InitConfig() (*Config, error) {
 	cfg := setDefaults()
 

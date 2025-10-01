@@ -10,6 +10,9 @@ import (
 	"net/url"
 )
 
+// handleAPIShortenBatch handles the batch creation of new shortened URLs from a JSON request.
+// It decodes the JSON request containing a list of URLs, generates unique IDs for each,
+// saves them to the storage in a batch, and returns a list of shortened URLs in a JSON response.
 func (s *Server) handleAPIShortenBatch(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.GetUserID(r.Context())
 	if err := s.validateBatchRequestMethod(r); err != nil {

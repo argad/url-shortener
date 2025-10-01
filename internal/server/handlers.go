@@ -12,19 +12,27 @@ import (
 	"time"
 )
 
+// ShortenRequest defines the structure for a request to shorten a URL.
+// It contains the URL that needs to be shortened.
 type ShortenRequest struct {
 	URL string `json:"url"`
 }
 
+// ShortenResponse defines the structure for the response of a URL shortening request.
+// It contains the resulting shortened URL.
 type ShortenResponse struct {
 	Result string `json:"result"`
 }
 
+// BatchURLRequest defines the structure for a single URL in a batch shortening request.
+// It includes a correlation ID to track the request and the original URL to be shortened.
 type BatchURLRequest struct {
 	CorrelationID string `json:"correlation_id"`
 	OriginalURL   string `json:"original_url"`
 }
 
+// BatchURLResponse defines the structure for a single URL in the response of a batch shortening request.
+// It includes the correlation ID from the request and the resulting shortened URL.
 type BatchURLResponse struct {
 	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
@@ -41,7 +49,10 @@ func generateID() string {
 	return base64.RawURLEncoding.EncodeToString(b)[:8]
 }
 
-// GET /{id}
+// handleGetURL handles the redirection of a shortened URL.
+// It retrieves the original URL from storage based on the provided ID
+// and redirects the client to it. If the URL is not found or has been deleted,
+// it returns an appropriate HTTP error.
 func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request) {
 
 	//test
@@ -70,6 +81,9 @@ func (s *Server) handleGetURL(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// handlePing checks the health of the database connection.
+// It responds with HTTP 200 OK if the database is reachable,
+// or HTTP 500 Internal Server Error if the connection is down.
 func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
 	if s.db == nil {
 		s.logger.Error("Database connection is not initialized")

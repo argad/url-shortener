@@ -9,6 +9,7 @@ import (
 	"sync"
 )
 
+// FileStorage is a storage implementation that uses a file to store URL data.
 type FileStorage struct {
 	data     map[string]URLData // shortURL -> originalURL
 	filePath string
@@ -16,6 +17,7 @@ type FileStorage struct {
 	counter  int
 }
 
+// NewFileStorage creates a new FileStorage.
 func NewFileStorage(filePath string) (*FileStorage, error) {
 	fs := &FileStorage{
 		data:     make(map[string]URLData),
@@ -35,6 +37,7 @@ func NewFileStorage(filePath string) (*FileStorage, error) {
 	return fs, nil
 }
 
+// SaveURL saves a new URL to the file storage.
 func (fs *FileStorage) SaveURL(originalURL, shortURL string, userID string) (string, error) {
 	if originalURL == "" {
 		return "", fmt.Errorf("url cannot be empty")
@@ -59,6 +62,7 @@ func (fs *FileStorage) SaveURL(originalURL, shortURL string, userID string) (str
 	return shortURL, nil
 }
 
+// GetURL retrieves a URL from the file storage.
 func (fs *FileStorage) GetURL(shortURL string) (string, error) {
 	fs.mutex.Lock()
 	defer fs.mutex.Unlock()
@@ -75,6 +79,7 @@ func (fs *FileStorage) GetURL(shortURL string) (string, error) {
 	return url.OriginalURL, nil
 }
 
+// GetUserURLs retrieves all URLs for a given user ID from the file storage.
 func (fs *FileStorage) GetUserURLs(userID string) ([]URLData, error) {
 	var userURLs []URLData
 
@@ -87,6 +92,7 @@ func (fs *FileStorage) GetUserURLs(userID string) ([]URLData, error) {
 	return userURLs, nil
 }
 
+// SaveBatch saves a batch of URLs to the file storage.
 func (fs *FileStorage) SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error) {
 	fs.mutex.Lock()
 	defer fs.mutex.Unlock()
@@ -180,6 +186,7 @@ func (fs *FileStorage) appendBatchToFile(records []URLData) error {
 	return nil
 }
 
+// DeleteURLs deletes a batch of URLs from the file storage.
 func (fs *FileStorage) DeleteURLs(shortURLs []string, userID string) error {
 	fs.mutex.Lock()
 	defer fs.mutex.Unlock()

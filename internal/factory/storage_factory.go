@@ -8,24 +8,30 @@ import (
 	"go.uber.org/zap"
 )
 
+// StorageFactory is a factory for creating storage instances.
 type StorageFactory struct {
 	logger *zap.Logger
 }
 
+// Logger is an interface for logging.
 type Logger interface {
 	Info(msg string)
 	Error(msg string)
 }
 
+// StorageResult is the result of creating a storage instance.
+// It contains the storage instance and a database connection if available.
 type StorageResult struct {
 	Storage storage2.Storage
 	DB      *database.Database
 }
 
+// NewStorageFactory creates a new StorageFactory.
 func NewStorageFactory(logger *zap.Logger) *StorageFactory {
 	return &StorageFactory{logger: logger}
 }
 
+// CreateStorage creates a storage instance based on the provided configuration.
 func (sf *StorageFactory) CreateStorage(cfg *config.Config) (*StorageResult, error) {
 	storageType := sf.determineStorageType(cfg)
 

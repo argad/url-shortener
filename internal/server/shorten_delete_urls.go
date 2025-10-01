@@ -2,23 +2,28 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/argad/url-shortener/internal/middleware"
-	"github.com/argad/url-shortener/internal/storage"
 	"net/http"
 	"sync"
+
+	"github.com/argad/url-shortener/internal/middleware"
+	"github.com/argad/url-shortener/internal/storage"
 )
 
+// DeleteURLsHandler handles the deletion of URLs.
+// It uses a channel and a worker pool to process deletion requests.
 type DeleteURLsHandler struct {
 	storage         storage.Storage
 	deletionChannel chan DeletionTask
 	workerPool      sync.WaitGroup
 }
 
+// DeletionTask represents a task for deleting a batch of URLs for a specific user.
 type DeletionTask struct {
 	URLs   []string
 	UserID string
 }
 
+// NewDeleteURLsHandler creates a new DeleteURLsHandler and starts a pool of deletion workers.
 func NewDeleteURLsHandler(storage storage.Storage) *DeleteURLsHandler {
 	handler := &DeleteURLsHandler{
 		storage:         storage,
@@ -32,6 +37,8 @@ func NewDeleteURLsHandler(storage storage.Storage) *DeleteURLsHandler {
 	return handler
 }
 
+// HandleDeleteURLs accepts a request to delete a batch of URLs for the authenticated user.
+// It returns a 202 Accepted status on success.
 func (h *DeleteURLsHandler) HandleDeleteURLs(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r.Context())
 	if r.Method != http.MethodDelete {
@@ -70,6 +77,7 @@ func (h *DeleteURLsHandler) deletionWorker() {
 	}
 }
 
+// Close closes the deletion channel.
 func (h *DeleteURLsHandler) Close() {
 	close(h.deletionChannel)
 }

@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+// handleAPIShortenURL handles the creation of a new shortened URL from a JSON request.
+// It decodes the JSON request, generates a unique ID, saves the URL to the storage,
+// and returns the shortened URL in a JSON response.
+// If a URL conflict occurs, it returns the existing shortened URL with a conflict status.
 func (s *Server) handleAPIShortenURL(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.GetUserID(r.Context())
 	if err := s.validateJSONContentType(r); err != nil {

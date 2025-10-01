@@ -7,12 +7,16 @@ import (
 	"net/http"
 )
 
+// UserURLResponse defines the structure for a single URL returned to a user.
+// It contains both the shortened URL and the original URL.
 type UserURLResponse struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
 
-// handleGetUserURLs возвращает все URL пользователя
+// handleGetUserURLs retrieves all URLs associated with the authenticated user.
+// It fetches the URLs from the storage and returns them as a JSON array.
+// If the user has no URLs, it returns a No Content status.
 func (s *Server) handleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r.Context())
 	if !ok || userID == "" {
