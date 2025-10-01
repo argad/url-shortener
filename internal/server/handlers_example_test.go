@@ -171,6 +171,7 @@ func ExampleServer_handleGetURL() {
 	// 307
 	// https://google.com
 }
+
 func ExampleServer_handlePing() {
 	// Create a new mock storage
 	mockStorage := storage.NewMockStorage()
@@ -364,4 +365,117 @@ func ExampleDeleteURLsHandler_HandleDeleteURLs() {
 
 	// Output:
 	// 202
+}
+
+func ExampleServer_handleShorten_badRequest() {
+	// Create a new mock storage
+	mockStorage := storage.NewMockStorage()
+
+	// Create a new server with the mock storage
+	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	if err != nil {
+		fmt.Printf("Failed to create server: %v", err)
+		return
+	}
+
+	// Create a new test server
+	testServer := httptest.NewServer(srv.Router)
+	defer testServer.Close()
+
+	// Create a request with an empty body
+	req, err := http.NewRequest("POST", testServer.URL+"/", strings.NewReader(""))
+	if err != nil {
+		fmt.Printf("Failed to create request: %v", err)
+		return
+	}
+
+	// Send the request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("Failed to send request: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Print the status code
+	fmt.Println(resp.StatusCode)
+
+	// Output:
+	// 400
+}
+
+func ExampleServer_handleAPIShortenURL_invalidJSON() {
+	// Create a new mock storage
+	mockStorage := storage.NewMockStorage()
+
+	// Create a new server with the mock storage
+	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	if err != nil {
+		fmt.Printf("Failed to create server: %v", err)
+		return
+	}
+
+	// Create a new test server
+	testServer := httptest.NewServer(srv.Router)
+	defer testServer.Close()
+
+	// Create a request with invalid JSON
+	jsonBody := `{"url": "https://google.com"` // Invalid JSON
+	req, err := http.NewRequest("POST", testServer.URL+"/api/shorten", strings.NewReader(jsonBody))
+	if err != nil {
+		fmt.Printf("Failed to create request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send the request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("Failed to send request: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Print the status code
+	fmt.Println(resp.StatusCode)
+
+	// Output:
+	// 400
+}
+
+func ExampleServer_handleGetURL_notFound() {
+	// Create a new mock storage
+	mockStorage := storage.NewMockStorage()
+
+	// Create a new server with the mock storage
+	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	if err != nil {
+		fmt.Printf("Failed to create server: %v", err)
+		return
+	}
+
+	// Create a new test server
+	testServer := httptest.NewServer(srv.Router)
+	defer testServer.Close()
+
+	// Create a request to get a non-existent URL
+	req, err := http.NewRequest("GET", testServer.URL+"/nonexistent", nil)
+	if err != nil {
+		fmt.Printf("Failed to create request: %v", err)
+		return
+	}
+
+	// Send the request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("Failed to send request: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Print the status code
+	fmt.Println(resp.StatusCode)
+
+	// Output:
+	// 400
 }
