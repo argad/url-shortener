@@ -9,12 +9,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const (
-	// CookieName is the name of the cookie used for user sessions.
-	CookieName = "user_session"
-	// SecretKey is the secret key used to sign JWT tokens.
-	SecretKey = "test-phrase"
-)
+// CookieName is the name of the cookie used for user sessions.
+const CookieName = "user_session"
+
+// SecretKey is the secret key used to sign JWT tokens.
+const SecretKey = "test-phrase"
 
 // Claims represents the JWT claims for the application.
 // It includes the user ID and standard registered claims.
