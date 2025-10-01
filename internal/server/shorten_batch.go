@@ -2,12 +2,13 @@ package server
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
+
 	"github.com/argad/url-shortener/internal/middleware"
 	"github.com/argad/url-shortener/internal/storage"
 	json "github.com/json-iterator/go"
 	"go.uber.org/zap"
-	"net/http"
-	"net/url"
 )
 
 // handleAPIShortenBatch handles the batch creation of new shortened URLs from a JSON request.
@@ -15,34 +16,74 @@ import (
 // saves them to the storage in a batch, and returns a list of shortened URLs in a JSON response.
 func (s *Server) handleAPIShortenBatch(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.GetUserID(r.Context())
-	if err := s.validateBatchRequestMethod(r); err != nil {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+
+	// Validate
+	if !s.isBatchRequestValid(w, r) {
 		return
 	}
 
+	// Parse
+	req, ok := s.getBatchRequest(w, r)
+	if !ok {
+		return
+	}
+
+	// Prepare
+	batchData, ok := s.getBatchData(w, req)
+	if !ok {
+		return
+	}
+
+	// Save
+	results, ok := s.saveBatch(w, batchData, userID)
+	if !ok {
+		return
+	}
+
+	// Respond
+	s.respondWithBatch(w, results)
+}
+
+func (s *Server) isBatchRequestValid(w http.ResponseWriter, r *http.Request) bool {
+	if err := s.validateBatchRequestMethod(r); err != nil {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return false
+	}
+	return true
+}
+
+func (s *Server) getBatchRequest(w http.ResponseWriter, r *http.Request) ([]BatchURLRequest, bool) {
 	req, err := s.parseBatchRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, false
 	}
+	return req, true
+}
 
+func (s *Server) getBatchData(w http.ResponseWriter, req []BatchURLRequest) ([]storage.BatchURLData, bool) {
 	batchData, err := s.prepareBatchData(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, false
 	}
+	return batchData, true
+}
 
+func (s *Server) saveBatch(w http.ResponseWriter, batchData []storage.BatchURLData, userID string) ([]storage.BatchURLData, bool) {
 	results, err := s.storage.SaveBatch(batchData, userID)
 	if err != nil {
 		s.logger.Error("Failed to save batch URLs", zap.Error(err))
 		http.Error(w, "Error saving URLs", http.StatusInternalServerError)
-		return
+		return nil, false
 	}
+	return results, true
+}
 
+func (s *Server) respondWithBatch(w http.ResponseWriter, results []storage.BatchURLData) {
 	if err := s.writeBatchResponse(w, results); err != nil {
 		s.logger.Error("Failed to write batch response", zap.Error(err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
 	}
 }
 

@@ -29,10 +29,23 @@ func (e *URLDeletedError) Error() string {
 }
 
 // Storage is the interface for URL storage.
+// Thread Safety:
+// All methods MUST be safe for concurrent use by multiple goroutines.
+// Implementations are responsible for ensuring proper synchronization.
 type Storage interface {
+	// SaveURL stores a URL mapping.
+	// Thread-safe: Yes
 	SaveURL(url string, key string, userID string) (string, error)
+	// GetURL retrieves the original URL by its short identifier.
+	// Thread-safe: Yes
 	GetURL(id string) (string, error)
+	// SaveBatch stores multiple URL mappings in a single operation.
+	// Thread-safe: Yes
 	SaveBatch(batchData []BatchURLData, userID string) ([]BatchURLData, error)
+	// GetUserURLs retrieves all URLs belonging to a specific user.
+	// Thread-safe: Yes
 	GetUserURLs(userID string) ([]URLData, error)
+	// DeleteURLs marks multiple URLs as deleted.
+	// Thread-safe: Yes
 	DeleteURLs(shortURLs []string, userID string) error
 }
