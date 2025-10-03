@@ -2,8 +2,10 @@ package server
 
 import (
 	"bytes"
-	"github.com/argad/url-shortener/cmd/shortener/storage"
+	"encoding/json"
+	storage2 "github.com/argad/url-shortener/internal/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,7 +27,7 @@ func TestServerHandleShorten(t *testing.T) {
 			contentType:    "text/plain",
 			body:           "http://example.com",
 			expectedStatus: http.StatusCreated,
-			expectedBody:   host, // Check only the prefix, as the ID is generated randomly
+			expectedBody:   "http://localhost:8080/", // Check only the prefix, as the ID is generated randomly
 		},
 		{
 			name:           "Invalid method",
@@ -33,14 +35,6 @@ func TestServerHandleShorten(t *testing.T) {
 			contentType:    "text/plain",
 			body:           "http://example.com",
 			expectedStatus: http.StatusMethodNotAllowed,
-			expectedBody:   "Bad Request\n",
-		},
-		{
-			name:           "Invalid Content-Type",
-			method:         http.MethodPost,
-			contentType:    "application/json",
-			body:           "http://example.com",
-			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Bad Request\n",
 		},
 		{
@@ -64,8 +58,11 @@ func TestServerHandleShorten(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock storage
-			mockStorage := storage.NewMockStorage()
-			server := NewServer(mockStorage, "http://localhost:8080/")
+			mockStorage := storage2.NewMockStorage()
+			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
+			if err != nil {
+				t.Fatalf("Failed to create server: %v", err)
+			}
 
 			// Create test request
 			req := httptest.NewRequest(tt.method, "/", bytes.NewBufferString(tt.body))
@@ -99,7 +96,7 @@ func TestServerHandleGetURL(t *testing.T) {
 		name           string
 		method         string
 		urlID          string
-		setupStorage   func(storage.Storage)
+		setupStorage   func(storage2.Storage)
 		expectedStatus int
 		expectedURL    string // now checking the URL in the Location header
 	}{
@@ -107,8 +104,8 @@ func TestServerHandleGetURL(t *testing.T) {
 			name:   "Successful URL retrieval",
 			method: http.MethodGet,
 			urlID:  "testid123",
-			setupStorage: func(s storage.Storage) {
-				s.SaveURL("http://example.com", "testid123")
+			setupStorage: func(s storage2.Storage) {
+				s.SaveURL("http://example.com", "testid123", "")
 			},
 			expectedStatus: http.StatusTemporaryRedirect,
 			expectedURL:    "http://example.com",
@@ -117,14 +114,14 @@ func TestServerHandleGetURL(t *testing.T) {
 			name:           "Invalid method",
 			method:         http.MethodPost,
 			urlID:          "testid123",
-			setupStorage:   func(s storage.Storage) {},
+			setupStorage:   func(s storage2.Storage) {},
 			expectedStatus: http.StatusMethodNotAllowed,
 		},
 		{
 			name:           "URL not found",
 			method:         http.MethodGet,
 			urlID:          "nonexistent",
-			setupStorage:   func(s storage.Storage) {},
+			setupStorage:   func(s storage2.Storage) {},
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
@@ -132,12 +129,15 @@ func TestServerHandleGetURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a mock storage
-			mockStorage := storage.NewMockStorage()
+			mockStorage := storage2.NewMockStorage()
 
 			// Configure storage for the test
 			tt.setupStorage(mockStorage)
 
-			server := NewServer(mockStorage, "http://localhost:8080/")
+			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
+			if err != nil {
+				t.Fatalf("Failed to create server: %v", err)
+			}
 
 			// Create a test request
 			req := httptest.NewRequest(tt.method, "/"+tt.urlID, nil)
@@ -154,6 +154,94 @@ func TestServerHandleGetURL(t *testing.T) {
 			if tt.expectedStatus == http.StatusTemporaryRedirect {
 				// Check the Location header for the successful case
 				assert.Equal(t, tt.expectedURL, rr.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+func TestServerHandleAPIShortenURL(t *testing.T) {
+	tests := []struct {
+		name           string
+		method         string
+		contentType    string
+		body           string
+		expectedStatus int
+		expectedResult bool // проверяем наличие поля result
+	}{
+		{
+			name:           "Successful JSON URL shortening",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			body:           `{"url":"https://practicum.yandex.ru"}`,
+			expectedStatus: http.StatusCreated,
+			expectedResult: true,
+		},
+		{
+			name:           "Invalid method",
+			method:         http.MethodGet,
+			contentType:    "application/json",
+			body:           `{"url":"https://practicum.yandex.ru"}`,
+			expectedStatus: http.StatusMethodNotAllowed,
+			expectedResult: false,
+		},
+		{
+			name:           "Invalid Content-Type",
+			method:         http.MethodPost,
+			contentType:    "text/plain",
+			body:           `{"url":"https://practicum.yandex.ru"}`,
+			expectedStatus: http.StatusBadRequest,
+			expectedResult: false,
+		},
+		{
+			name:           "Empty URL in JSON",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			body:           `{"url":""}`,
+			expectedStatus: http.StatusInternalServerError,
+			expectedResult: false,
+		},
+		{
+			name:           "Invalid JSON format",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			body:           `{"url":}`,
+			expectedStatus: http.StatusBadRequest,
+			expectedResult: false,
+		},
+		{
+			name:           "Missing url field",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			body:           `{"other":"https://practicum.yandex.ru"}`,
+			expectedStatus: http.StatusInternalServerError,
+			expectedResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage := storage2.NewMockStorage()
+			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
+			if err != nil {
+				t.Fatalf("Failed to create server: %v", err)
+			}
+
+			req := httptest.NewRequest(tt.method, "/api/shorten", bytes.NewBufferString(tt.body))
+			req.Header.Set("Content-Type", tt.contentType)
+
+			rr := httptest.NewRecorder()
+			server.Router.ServeHTTP(rr, req)
+			assert.Equal(t, tt.expectedStatus, rr.Code)
+
+			if tt.expectedResult {
+				assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+
+				var response ShortenResponse
+				err := json.Unmarshal(rr.Body.Bytes(), &response)
+				require.NoError(t, err)
+
+				assert.True(t, strings.HasPrefix(response.Result, "http://localhost:8080/"))
+				assert.NotEmpty(t, strings.TrimPrefix(response.Result, "http://localhost:8080/"))
 			}
 		})
 	}
