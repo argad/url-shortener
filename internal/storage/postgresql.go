@@ -82,9 +82,9 @@ func (ps *PostgresStorage) SaveURL(originalURL, shortURL string, userID string) 
 		if errors.Is(err, pgx.ErrNoRows) {
 			selectQuery := `SELECT short_url FROM urls WHERE original_url = $1`
 			var existingShortURL string
-			err := ps.db.QueryRow(ctx, selectQuery, originalURL).Scan(&existingShortURL)
-			if err != nil {
-				return "", fmt.Errorf("failed to get existing URL: %w", err)
+			selectErr := ps.db.QueryRow(ctx, selectQuery, originalURL).Scan(&existingShortURL)
+			if selectErr != nil {
+				return "", fmt.Errorf("failed to get existing URL: %w", selectErr)
 			}
 			return "", &URLConflictError{ExistingShortURL: existingShortURL}
 		}
