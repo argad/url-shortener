@@ -29,4 +29,4 @@ To run the analysis, execute:
     go run cmd/staticlint/main.go ./...
 */
 
-package url_shortener
+package shortener

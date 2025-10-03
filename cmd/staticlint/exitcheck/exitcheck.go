@@ -6,6 +6,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
+// NoExitAnalyzer create the Analyzer instance
 var NoExitAnalyzer = &analysis.Analyzer{
 	Name: "noexit",
 	Doc:  "check for direct os.Exit calls in main function of main package",
@@ -19,7 +20,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	for _, file := range pass.Files {
 		ast.Inspect(file, func(node ast.Node) bool {
-			// Find main function
+			// Find the main function
 			funcDecl, ok := node.(*ast.FuncDecl)
 			if !ok || funcDecl.Name.Name != "main" {
 				return true
