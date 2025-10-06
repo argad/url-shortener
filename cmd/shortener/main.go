@@ -1,15 +1,27 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"net/http"
+
 	"github.com/argad/url-shortener/internal/config"
 	"github.com/argad/url-shortener/internal/factory"
 	"github.com/argad/url-shortener/internal/server"
 	"go.uber.org/zap"
-	"log"
-	"net/http"
+)
+
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
 )
 
 func main() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
+
 	cfg, err := config.InitConfig()
 	if err != nil {
 		log.Fatalf("Ошибка инициализации конфигурации: %v", err)
