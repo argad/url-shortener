@@ -26,7 +26,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return true
 			}
 
-			// Check for os.Exit calls inside main function
+			// Check for os.Exit calls inside the main function
 			ast.Inspect(funcDecl.Body, func(n ast.Node) bool {
 				callExpr, ok := n.(*ast.CallExpr)
 				if !ok {
@@ -38,14 +38,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					return true
 				}
 
-				ident, ok := selectorExpr.X.(*ast.Ident)
-				if !ok {
-					return true
+				// Use TypesInfo.Uses to get the actual object being referenced
+				if obj := pass.TypesInfo.Uses[selectorExpr.Sel]; obj != nil {
+					// Check if this is a function from the "os" package
+					if pkg := obj.Pkg(); pkg != nil && pkg.Path() == "os" && obj.Name() == "Exit" {
+						pass.Reportf(callExpr.Pos(), "direct call to os.Exit in main function is forbidden")
+					}
 				}
 
-				if ident.Name == "os" && selectorExpr.Sel.Name == "Exit" {
-					pass.Reportf(callExpr.Pos(), "direct call to os.Exit in main function is forbidden")
-				}
 				return true
 			})
 

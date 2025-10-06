@@ -30,3 +30,32 @@ git fetch template && git checkout template/main .github
 При мёрже ветки с инкрементом в основную ветку `main` будут запускаться все автотесты.
 
 Подробнее про локальный и автоматический запуск читайте в [README автотестов](https://github.com/Yandex-Practicum/go-autotests).
+
+## Установка значений переменных сборки (buildVersion, buildDate, buildCommit)
+
+В бинарнике сервера (cmd/shortener) предусмотрены три переменные, которые выводятся при старте приложения:
+
+- buildVersion — версия сборки;
+- buildDate — дата/время сборки;
+- buildCommit — хеш коммита, из которого собран бинарник.
+
+По умолчанию все они имеют значение "N/A". Задать их можно на этапе компиляции с помощью флага линковщика -ldflags и опции -X.
+
+Примеры команд:
+
+1) Сборка бинарника
+
+```
+go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=2025-10-06 -X main.buildCommit=abcdef1" -o shortener.exe ./cmd/shortener
+```
+
+2) Запуск без создания бинарника
+
+```
+go run -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=2025-10-06 -X main.buildCommit=abcdef1" ./cmd/shortener
+```
+
+Пояснения:
+
+- Используйте префикс main. для переменных, так как они объявлены в пакете main (cmd/shortener/main.go).
+- Если значения не заданы, при старте приложения будут выведены строки N/A.
