@@ -3,9 +3,10 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/caarlos0/env/v10"
 	"os"
 	"strings"
+
+	"github.com/caarlos0/env/v10"
 )
 
 // Config defines the configuration parameters for the application.
@@ -16,6 +17,9 @@ type Config struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	JWTSecret       string `env:"JWT_SECRET"`
+	EnableHTTPS     bool   `env:"ENABLE_HTTPS"`
+	AutocertDomain  string `env:"AUTOCERT_DOMAIN"`
+	AutocertDir     string `env:"AUTOCERT_DIR"`
 }
 
 // InitConfig initializes the application's configuration.
@@ -46,6 +50,9 @@ func parseFlags(cfg *Config) {
 	envFilePath := flag.String("f", cfg.FileStoragePath, "Base address of the file to storage")
 	databaseDSN := flag.String("d", cfg.DatabaseDSN, "Base DSN address of the database")
 	jwtSecret := flag.String("j", cfg.JWTSecret, "JWT secret key for token signing")
+	enableHTTPS := flag.Bool("s", cfg.EnableHTTPS, "Enable HTTPS server with Let's Encrypt certificates")
+	autocertDomain := flag.String("domain", cfg.AutocertDomain, "Domain for Let's Encrypt certificate")
+	autocertDir := flag.String("cert-dir", cfg.AutocertDir, "Directory to store Let's Encrypt certificates")
 
 	flag.Parse()
 
@@ -68,6 +75,17 @@ func parseFlags(cfg *Config) {
 	if !isEnvSet("JWT_SECRET") {
 		cfg.JWTSecret = *jwtSecret
 	}
+	if !isEnvSet("ENABLE_HTTPS") {
+		cfg.EnableHTTPS = *enableHTTPS
+	}
+
+	if !isEnvSet("AUTOCERT_DOMAIN") {
+		cfg.AutocertDomain = *autocertDomain
+	}
+
+	if !isEnvSet("AUTOCERT_DIR") {
+		cfg.AutocertDir = *autocertDir
+	}
 }
 
 func validate(cfg *Config) error {
@@ -76,6 +94,14 @@ func validate(cfg *Config) error {
 	}
 	if cfg.JWTSecret == "" {
 		return fmt.Errorf("JWT secret cannot be empty")
+	}
+	if cfg.EnableHTTPS {
+		if cfg.AutocertDomain == "" {
+			return fmt.Errorf("domain is required when HTTPS is enabled")
+		}
+		if cfg.AutocertDir == "" {
+			return fmt.Errorf("certificate directory is required when HTTPS is enabled")
+		}
 	}
 	return nil
 }
@@ -100,6 +126,9 @@ func setDefaults() *Config {
 		FileStoragePath: "",
 		DatabaseDSN:     "",
 		JWTSecret:       "test-phrase",
+		EnableHTTPS:     false,
+		AutocertDomain:  "",
+		AutocertDir:     "./certs",
 	}
 }
 
