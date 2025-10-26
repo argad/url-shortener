@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -22,12 +23,31 @@ type Config struct {
 	AutocertDir     string `env:"AUTOCERT_DIR"`
 }
 
+// JSONConfig defines the structure of the JSON configuration file
+type JSONConfig struct {
+	ServerAddress   string `json:"server_address,omitempty"`
+	BaseURL         string `json:"base_url,omitempty"`
+	FileStoragePath string `json:"file_storage_path,omitempty"`
+	DatabaseDSN     string `json:"database_dsn,omitempty"`
+	EnableHTTPS     *bool  `json:"enable_https,omitempty"`
+}
+
 // InitConfig initializes the application's configuration.
 // It reads configuration from environment variables and command-line flags,
 // sets default values, and validates the configuration.
 // Returns a populated Config struct or an error if initialization fails.
 func InitConfig() (*Config, error) {
 	cfg := setDefaults()
+
+	// Get config file path from environment or flags
+	configFilePath := getConfigFilePath()
+
+	// Load JSON config first (lowest priority)
+	if configFilePath != "" {
+		if err := loadJSONConfig(cfg, configFilePath); err != nil {
+			return nil, fmt.Errorf("error loading JSON config: %w", err)
+		}
+	}
 
 	if err := parseEnvironment(cfg); err != nil {
 		return nil, err
@@ -42,6 +62,64 @@ func InitConfig() (*Config, error) {
 	normalizeServerAddress(cfg)
 
 	return cfg, nil
+}
+
+func getConfigFilePath() string {
+	// Check the command line flag first
+	var configPath string
+	flag.StringVar(&configPath, "c", "", "Path to JSON configuration file")
+	flag.StringVar(&configPath, "config", "", "Path to JSON configuration file")
+
+	// Parse only the config flag to get its value early
+	for i, arg := range os.Args[1:] {
+		if (arg == "-c" || arg == "-config") && i+1 < len(os.Args)-1 {
+			return os.Args[i+2]
+		}
+		if strings.HasPrefix(arg, "-c=") {
+			return strings.TrimPrefix(arg, "-c=")
+		}
+		if strings.HasPrefix(arg, "-config=") {
+			return strings.TrimPrefix(arg, "-config=")
+		}
+	}
+
+	// Check environment variable
+	if envConfig := os.Getenv("CONFIG"); envConfig != "" {
+		return envConfig
+	}
+
+	return ""
+}
+
+func loadJSONConfig(cfg *Config, filePath string) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read config file %s: %w", filePath, err)
+	}
+
+	var jsonConfig JSONConfig
+	if err := json.Unmarshal(data, &jsonConfig); err != nil {
+		return fmt.Errorf("failed to parse JSON config: %w", err)
+	}
+
+	// Apply JSON config values only if they are not empty and current value is default
+	if jsonConfig.ServerAddress != "" {
+		cfg.ServerAddress = jsonConfig.ServerAddress
+	}
+	if jsonConfig.BaseURL != "" {
+		cfg.BaseShortURL = jsonConfig.BaseURL
+	}
+	if jsonConfig.FileStoragePath != "" {
+		cfg.FileStoragePath = jsonConfig.FileStoragePath
+	}
+	if jsonConfig.DatabaseDSN != "" {
+		cfg.DatabaseDSN = jsonConfig.DatabaseDSN
+	}
+	if jsonConfig.EnableHTTPS != nil {
+		cfg.EnableHTTPS = *jsonConfig.EnableHTTPS
+	}
+
+	return nil
 }
 
 func parseFlags(cfg *Config) {
