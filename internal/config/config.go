@@ -1,11 +1,13 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/caarlos0/env/v10"
 	"os"
 	"strings"
+
+	"github.com/caarlos0/env/v10"
 )
 
 // Config defines the configuration parameters for the application.
@@ -16,6 +18,18 @@ type Config struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	JWTSecret       string `env:"JWT_SECRET"`
+	EnableHTTPS     bool   `env:"ENABLE_HTTPS"`
+	AutocertDomain  string `env:"AUTOCERT_DOMAIN"`
+	AutocertDir     string `env:"AUTOCERT_DIR"`
+}
+
+// JSONConfig defines the structure of the JSON configuration file
+type JSONConfig struct {
+	ServerAddress   string `json:"server_address,omitempty"`
+	BaseURL         string `json:"base_url,omitempty"`
+	FileStoragePath string `json:"file_storage_path,omitempty"`
+	DatabaseDSN     string `json:"database_dsn,omitempty"`
+	EnableHTTPS     *bool  `json:"enable_https,omitempty"`
 }
 
 // InitConfig initializes the application's configuration.
@@ -24,6 +38,16 @@ type Config struct {
 // Returns a populated Config struct or an error if initialization fails.
 func InitConfig() (*Config, error) {
 	cfg := setDefaults()
+
+	// Get config file path from environment or flags
+	configFilePath := getConfigFilePath()
+
+	// Load JSON config first (lowest priority)
+	if configFilePath != "" {
+		if err := loadJSONConfig(cfg, configFilePath); err != nil {
+			return nil, fmt.Errorf("error loading JSON config: %w", err)
+		}
+	}
 
 	if err := parseEnvironment(cfg); err != nil {
 		return nil, err
@@ -40,12 +64,73 @@ func InitConfig() (*Config, error) {
 	return cfg, nil
 }
 
+func getConfigFilePath() string {
+	// Check the command line flag first
+	var configPath string
+	flag.StringVar(&configPath, "c", "", "Path to JSON configuration file")
+	flag.StringVar(&configPath, "config", "", "Path to JSON configuration file")
+
+	// Parse only the config flag to get its value early
+	for i, arg := range os.Args[1:] {
+		if (arg == "-c" || arg == "-config") && i+1 < len(os.Args)-1 {
+			return os.Args[i+2]
+		}
+		if strings.HasPrefix(arg, "-c=") {
+			return strings.TrimPrefix(arg, "-c=")
+		}
+		if strings.HasPrefix(arg, "-config=") {
+			return strings.TrimPrefix(arg, "-config=")
+		}
+	}
+
+	// Check environment variable
+	if envConfig := os.Getenv("CONFIG"); envConfig != "" {
+		return envConfig
+	}
+
+	return ""
+}
+
+func loadJSONConfig(cfg *Config, filePath string) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read config file %s: %w", filePath, err)
+	}
+
+	var jsonConfig JSONConfig
+	if err := json.Unmarshal(data, &jsonConfig); err != nil {
+		return fmt.Errorf("failed to parse JSON config: %w", err)
+	}
+
+	// Apply JSON config values only if they are not empty and current value is default
+	if jsonConfig.ServerAddress != "" {
+		cfg.ServerAddress = jsonConfig.ServerAddress
+	}
+	if jsonConfig.BaseURL != "" {
+		cfg.BaseShortURL = jsonConfig.BaseURL
+	}
+	if jsonConfig.FileStoragePath != "" {
+		cfg.FileStoragePath = jsonConfig.FileStoragePath
+	}
+	if jsonConfig.DatabaseDSN != "" {
+		cfg.DatabaseDSN = jsonConfig.DatabaseDSN
+	}
+	if jsonConfig.EnableHTTPS != nil {
+		cfg.EnableHTTPS = *jsonConfig.EnableHTTPS
+	}
+
+	return nil
+}
+
 func parseFlags(cfg *Config) {
 	serverAddress := flag.String("a", cfg.ServerAddress, "Address for starting the HTTP server (e.g., localhost:8888)")
 	baseShortURL := flag.String("b", cfg.BaseShortURL, "Base address for the resulting shortened URL (e.g., http://localhost:8000/qsd54gFg)")
 	envFilePath := flag.String("f", cfg.FileStoragePath, "Base address of the file to storage")
 	databaseDSN := flag.String("d", cfg.DatabaseDSN, "Base DSN address of the database")
 	jwtSecret := flag.String("j", cfg.JWTSecret, "JWT secret key for token signing")
+	enableHTTPS := flag.Bool("s", cfg.EnableHTTPS, "Enable HTTPS server with Let's Encrypt certificates")
+	autocertDomain := flag.String("domain", cfg.AutocertDomain, "Domain for Let's Encrypt certificate")
+	autocertDir := flag.String("cert-dir", cfg.AutocertDir, "Directory to store Let's Encrypt certificates")
 
 	flag.Parse()
 
@@ -68,6 +153,17 @@ func parseFlags(cfg *Config) {
 	if !isEnvSet("JWT_SECRET") {
 		cfg.JWTSecret = *jwtSecret
 	}
+	if !isEnvSet("ENABLE_HTTPS") {
+		cfg.EnableHTTPS = *enableHTTPS
+	}
+
+	if !isEnvSet("AUTOCERT_DOMAIN") {
+		cfg.AutocertDomain = *autocertDomain
+	}
+
+	if !isEnvSet("AUTOCERT_DIR") {
+		cfg.AutocertDir = *autocertDir
+	}
 }
 
 func validate(cfg *Config) error {
@@ -76,6 +172,14 @@ func validate(cfg *Config) error {
 	}
 	if cfg.JWTSecret == "" {
 		return fmt.Errorf("JWT secret cannot be empty")
+	}
+	if cfg.EnableHTTPS {
+		if cfg.AutocertDomain == "" {
+			return fmt.Errorf("domain is required when HTTPS is enabled")
+		}
+		if cfg.AutocertDir == "" {
+			return fmt.Errorf("certificate directory is required when HTTPS is enabled")
+		}
 	}
 	return nil
 }
@@ -100,6 +204,9 @@ func setDefaults() *Config {
 		FileStoragePath: "",
 		DatabaseDSN:     "",
 		JWTSecret:       "test-phrase",
+		EnableHTTPS:     false,
+		AutocertDomain:  "",
+		AutocertDir:     "./certs",
 	}
 }
 
