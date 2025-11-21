@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 
+	"github.com/argad/url-shortener/internal/config"
 	"github.com/argad/url-shortener/internal/database"
 	middleware "github.com/argad/url-shortener/internal/middleware"
 	"github.com/argad/url-shortener/internal/storage"
@@ -19,13 +20,11 @@ type Server struct {
 	baseURL string
 	logger  *zap.Logger
 	db      *database.Database
+	config  *config.Config
 }
 
-// NewServer creates and configures a new Server instance.
-// It initializes the server with the given storage backend, base URL for shortened links,
-// and a database connection. It also sets up the router with the necessary middleware and routes.
-// Returns the newly created Server or an error if initialization fails.
-func NewServer(storageInterface storage.Storage, baseURL string, db *database.Database) (*Server, error) {
+// NewServer creates and new Server instance.
+func NewServer(storageInterface storage.Storage, cfg *config.Config, db *database.Database) (*Server, error) {
 
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -35,9 +34,10 @@ func NewServer(storageInterface storage.Storage, baseURL string, db *database.Da
 	s := &Server{
 		storage: storageInterface,
 		Router:  chi.NewRouter(),
-		baseURL: baseURL,
+		baseURL: cfg.BaseShortURL,
 		logger:  logger,
 		db:      db,
+		config:  cfg,
 	}
 
 	s.Router.Use(middleware.LoggingMiddleware(s.logger))
@@ -59,4 +59,5 @@ func (s *Server) routes() {
 
 	s.Router.With(middleware.RequireAuth).Delete("/api/user/urls", NewDeleteURLsHandler(s.storage).HandleDeleteURLs)
 
+	s.Router.With(middleware.CheckTrustedSubnet(s.config.TrustedSubnet)).Get("/api/internal/stats", s.handleGetStats)
 }
