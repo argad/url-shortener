@@ -231,3 +231,23 @@ func (fs *FileStorage) rewriteFile() error {
 
 	return nil
 }
+
+// GetURLCount retrieves the total number of URLs.
+func (fs *FileStorage) GetURLCount() (int, error) {
+	fs.mutex.Lock()
+	defer fs.mutex.Unlock()
+	return len(fs.data), nil
+}
+
+// GetUserCount retrieves the total number of users.
+func (fs *FileStorage) GetUserCount() (int, error) {
+	fs.mutex.Lock()
+	defer fs.mutex.Unlock()
+	users := make(map[string]struct{})
+	for _, data := range fs.data {
+		if data.UserID != "" {
+			users[data.UserID] = struct{}{}
+		}
+	}
+	return len(users), nil
+}

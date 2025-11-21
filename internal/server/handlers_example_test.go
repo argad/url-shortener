@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/argad/url-shortener/internal/auth"
-	"github.com/argad/url-shortener/internal/middleware"
+	"github.com/argad/url-shortener/internal/config"
 	"github.com/argad/url-shortener/internal/server"
 	"github.com/argad/url-shortener/internal/storage"
 )
@@ -34,7 +34,8 @@ func ExampleServer_handleShorten() {
 	mockStorage := storage.NewMockStorage()
 
 	// Create a new server with the mock storage
-	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	srv, err := server.NewServer(mockStorage, cfg, nil)
 	if err != nil {
 		fmt.Printf("Failed to create server: %v", err)
 		return
@@ -81,7 +82,8 @@ func ExampleServer_handleAPIShortenURL() {
 	mockStorage := storage.NewMockStorage()
 
 	// Create a new server with the mock storage
-	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	srv, err := server.NewServer(mockStorage, cfg, nil)
 	if err != nil {
 		fmt.Printf("Failed to create server: %v", err)
 		return
@@ -131,7 +133,8 @@ func ExampleServer_handleGetURL() {
 	key, _ := mockStorage.SaveURL("https://google.com", "test", "")
 
 	// Create a new server with the mock storage
-	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	srv, err := server.NewServer(mockStorage, cfg, nil)
 	if err != nil {
 		fmt.Printf("Failed to create server: %v", err)
 		return
@@ -177,7 +180,8 @@ func ExampleServer_handlePing() {
 	mockStorage := storage.NewMockStorage()
 
 	// Create a new server with a nil database connection
-	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	srv, err := server.NewServer(mockStorage, cfg, nil)
 	if err != nil {
 		fmt.Printf("Failed to create server: %v", err)
 		return
@@ -214,7 +218,8 @@ func ExampleServer_handleAPIShortenBatch() {
 	mockStorage := storage.NewMockStorage()
 
 	// Create a new server with the mock storage
-	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	srv, err := server.NewServer(mockStorage, cfg, nil)
 	if err != nil {
 		fmt.Printf("Failed to create server: %v", err)
 		return
@@ -267,7 +272,8 @@ func ExampleServer_handleGetUserURLs() {
 	_, _ = mockStorage.SaveURL("https://yandex.ru", "test2", "user1")
 
 	// Create a new server with the mock storage
-	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	srv, err := server.NewServer(mockStorage, cfg, nil)
 	if err != nil {
 		fmt.Printf("Failed to create server: %v", err)
 		return
@@ -321,22 +327,33 @@ func ExampleServer_handleGetUserURLs() {
 	// true
 }
 
-func ExampleDeleteURLsHandler_HandleDeleteURLs() {
+func ExampleServer_handleDeleteUserURLs() {
 	// Create a new mock storage
 	mockStorage := storage.NewMockStorage()
 	_, _ = mockStorage.SaveURL("https://google.com", "test1", "user1")
 
-	// Create a new delete handler
-	deleteHandler := server.NewDeleteURLsHandler(mockStorage)
-	defer deleteHandler.Close()
+	// Create a new logger
+	//logger, _ := zap.NewProduction()
+
+	// Create a mock config
+	cfg := &config.Config{
+		BaseShortURL: "http://localhost:8080",
+	}
+
+	// Create a new server
+	srv, err := server.NewServer(mockStorage, cfg, nil)
+	if err != nil {
+		fmt.Printf("Failed to create server: %v", err)
+		return
+	}
 
 	// Create a new test server
-	testServer := httptest.NewServer(middleware.AuthMiddleware(http.HandlerFunc(deleteHandler.HandleDeleteURLs)))
+	testServer := httptest.NewServer(srv.Router)
 	defer testServer.Close()
 
 	// Create a request to delete a URL
 	jsonBody := `["test1"]`
-	req, err := http.NewRequest("DELETE", testServer.URL, strings.NewReader(jsonBody))
+	req, err := http.NewRequest("DELETE", testServer.URL+"/api/user/urls", strings.NewReader(jsonBody))
 	if err != nil {
 		fmt.Printf("Failed to create request: %v", err)
 		return
@@ -372,7 +389,8 @@ func ExampleServer_handleShorten_badRequest() {
 	mockStorage := storage.NewMockStorage()
 
 	// Create a new server with the mock storage
-	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	srv, err := server.NewServer(mockStorage, cfg, nil)
 	if err != nil {
 		fmt.Printf("Failed to create server: %v", err)
 		return
@@ -409,7 +427,8 @@ func ExampleServer_handleAPIShortenURL_invalidJSON() {
 	mockStorage := storage.NewMockStorage()
 
 	// Create a new server with the mock storage
-	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	srv, err := server.NewServer(mockStorage, cfg, nil)
 	if err != nil {
 		fmt.Printf("Failed to create server: %v", err)
 		return
@@ -448,7 +467,8 @@ func ExampleServer_handleGetURL_notFound() {
 	mockStorage := storage.NewMockStorage()
 
 	// Create a new server with the mock storage
-	srv, err := server.NewServer(mockStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	srv, err := server.NewServer(mockStorage, cfg, nil)
 	if err != nil {
 		fmt.Printf("Failed to create server: %v", err)
 		return

@@ -24,7 +24,7 @@ func (s *Server) handleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	urls, err := s.storage.GetUserURLs(userID)
+	urls, err := s.urlService.GetUserURLs(userID)
 	if err != nil {
 		s.logger.Error("Failed to get user URLs", zap.Error(err))
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
