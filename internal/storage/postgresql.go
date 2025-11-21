@@ -288,3 +288,35 @@ func (ps *PostgresStorage) DeleteURLs(shortURLs []string, userID string) error {
 
 	return nil
 }
+
+// GetURLCount retrieves the total number of URLs.
+func (ps *PostgresStorage) GetURLCount() (int, error) {
+	query := `SELECT COUNT(*) FROM urls`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var count int
+	err := ps.db.QueryRow(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get URL count: %w", err)
+	}
+
+	return count, nil
+}
+
+// GetUserCount retrieves the total number of users.
+func (ps *PostgresStorage) GetUserCount() (int, error) {
+	query := `SELECT COUNT(DISTINCT user_id) FROM urls`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var count int
+	err := ps.db.QueryRow(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get user count: %w", err)
+	}
+
+	return count, nil
+}

@@ -112,3 +112,23 @@ func (s *InMemoryStorage) DeleteURLs(shortURLs []string, userID string) error {
 	}
 	return nil
 }
+
+// GetURLCount retrieves the total number of URLs.
+func (s *InMemoryStorage) GetURLCount() (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.data), nil
+}
+
+// GetUserCount retrieves the total number of users.
+func (s *InMemoryStorage) GetUserCount() (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	users := make(map[string]struct{})
+	for _, data := range s.data {
+		if data.UserID != "" {
+			users[data.UserID] = struct{}{}
+		}
+	}
+	return len(users), nil
+}

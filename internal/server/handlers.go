@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -94,4 +95,31 @@ func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
+}
+
+func (s *Server) handleGetStats(w http.ResponseWriter, r *http.Request) {
+	urlCount, err := s.storage.GetURLCount()
+	if err != nil {
+		http.Error(w, "Failed to get URL count", http.StatusInternalServerError)
+		return
+	}
+
+	userCount, err := s.storage.GetUserCount()
+	if err != nil {
+		http.Error(w, "Failed to get user count", http.StatusInternalServerError)
+		return
+	}
+
+	stats := struct {
+		URLs  int `json:"urls"`
+		Users int `json:"users"`
+	}{
+		URLs:  urlCount,
+		Users: userCount,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		http.Error(w, "Failed to encode stats", http.StatusInternalServerError)
+	}
 }

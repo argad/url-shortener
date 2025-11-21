@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/argad/url-shortener/internal/config"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +14,8 @@ import (
 )
 
 func BenchmarkHandleShorten(b *testing.B) {
-	s, err := NewServer(storage.NewInMemoryStorage(), "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	s, err := NewServer(storage.NewInMemoryStorage(), cfg, nil)
 	if err != nil {
 		b.Fatalf("Failed to create new server: %v", err)
 	}
@@ -40,7 +42,8 @@ func BenchmarkHandleGetURL(b *testing.B) {
 		b.Fatalf("Failed to save URL: %v", err)
 	}
 
-	s, err := NewServer(memStorage, "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	s, err := NewServer(memStorage, cfg, nil)
 	if err != nil {
 		b.Fatalf("Failed to create new server: %v", err)
 	}
@@ -66,7 +69,8 @@ func BenchmarkHandleGetURL(b *testing.B) {
 }
 
 func BenchmarkHandleAPIShortenURL(b *testing.B) {
-	s, err := NewServer(storage.NewInMemoryStorage(), "http://localhost:8080", nil)
+	cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+	s, err := NewServer(storage.NewInMemoryStorage(), cfg, nil)
 	if err != nil {
 		b.Fatalf("Failed to create new server: %v", err)
 	}

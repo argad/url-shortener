@@ -21,6 +21,7 @@ type Config struct {
 	EnableHTTPS     bool   `env:"ENABLE_HTTPS"`
 	AutocertDomain  string `env:"AUTOCERT_DOMAIN"`
 	AutocertDir     string `env:"AUTOCERT_DIR"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
 }
 
 // JSONConfig defines the structure of the JSON configuration file
@@ -30,6 +31,7 @@ type JSONConfig struct {
 	FileStoragePath string `json:"file_storage_path,omitempty"`
 	DatabaseDSN     string `json:"database_dsn,omitempty"`
 	EnableHTTPS     *bool  `json:"enable_https,omitempty"`
+	TrustedSubnet   string `json:"trusted_subnet,omitempty"`
 }
 
 // InitConfig initializes the application's configuration.
@@ -118,6 +120,9 @@ func loadJSONConfig(cfg *Config, filePath string) error {
 	if jsonConfig.EnableHTTPS != nil {
 		cfg.EnableHTTPS = *jsonConfig.EnableHTTPS
 	}
+	if jsonConfig.TrustedSubnet != "" {
+		cfg.TrustedSubnet = jsonConfig.TrustedSubnet
+	}
 
 	return nil
 }
@@ -131,6 +136,7 @@ func parseFlags(cfg *Config) {
 	enableHTTPS := flag.Bool("s", cfg.EnableHTTPS, "Enable HTTPS server with Let's Encrypt certificates")
 	autocertDomain := flag.String("domain", cfg.AutocertDomain, "Domain for Let's Encrypt certificate")
 	autocertDir := flag.String("cert-dir", cfg.AutocertDir, "Directory to store Let's Encrypt certificates")
+	trustedSubnet := flag.String("t", cfg.TrustedSubnet, "Trusted subnet in CIDR format")
 
 	flag.Parse()
 
@@ -163,6 +169,10 @@ func parseFlags(cfg *Config) {
 
 	if !isEnvSet("AUTOCERT_DIR") {
 		cfg.AutocertDir = *autocertDir
+	}
+
+	if !isEnvSet("TRUSTED_SUBNET") {
+		cfg.TrustedSubnet = *trustedSubnet
 	}
 }
 
@@ -207,6 +217,7 @@ func setDefaults() *Config {
 		EnableHTTPS:     false,
 		AutocertDomain:  "",
 		AutocertDir:     "./certs",
+		TrustedSubnet:   "",
 	}
 }
 

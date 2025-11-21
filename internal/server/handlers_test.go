@@ -3,13 +3,15 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	storage2 "github.com/argad/url-shortener/internal/storage"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/argad/url-shortener/internal/config"
+	storage2 "github.com/argad/url-shortener/internal/storage"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServerHandleShorten(t *testing.T) {
@@ -59,7 +61,8 @@ func TestServerHandleShorten(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock storage
 			mockStorage := storage2.NewMockStorage()
-			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
+			cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+			server, err := NewServer(mockStorage, cfg, nil)
 			if err != nil {
 				t.Fatalf("Failed to create server: %v", err)
 			}
@@ -134,7 +137,8 @@ func TestServerHandleGetURL(t *testing.T) {
 			// Configure storage for the test
 			tt.setupStorage(mockStorage)
 
-			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
+			cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+			server, err := NewServer(mockStorage, cfg, nil)
 			if err != nil {
 				t.Fatalf("Failed to create server: %v", err)
 			}
@@ -221,7 +225,8 @@ func TestServerHandleAPIShortenURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage := storage2.NewMockStorage()
-			server, err := NewServer(mockStorage, "http://localhost:8080/", nil)
+			cfg := &config.Config{BaseShortURL: "http://localhost:8080"}
+			server, err := NewServer(mockStorage, cfg, nil)
 			if err != nil {
 				t.Fatalf("Failed to create server: %v", err)
 			}
@@ -242,6 +247,94 @@ func TestServerHandleAPIShortenURL(t *testing.T) {
 
 				assert.True(t, strings.HasPrefix(response.Result, "http://localhost:8080/"))
 				assert.NotEmpty(t, strings.TrimPrefix(response.Result, "http://localhost:8080/"))
+			}
+		})
+	}
+}
+
+func TestServerHandleGetStats(t *testing.T) {
+
+	type want struct {
+		code int
+		body string
+	}
+
+	tests := []struct {
+		name          string
+		trustedSubnet string
+		xRealIP       string
+		setupStorage  func(storage *storage2.MockStorage)
+		want          want
+	}{
+		{
+			name:          "Successful request from a trusted IP",
+			trustedSubnet: "192.168.1.0/24",
+			xRealIP:       "192.168.1.100",
+			setupStorage: func(s *storage2.MockStorage) {
+				s.SaveURL("http://example.com", "key1", "user1")
+				s.SaveURL("http://example.org", "key2", "user2")
+
+			},
+
+			want: want{
+				code: http.StatusOK,
+				body: `{"urls":2,"users":2}`,
+			},
+		},
+		{
+
+			name:          "Forbidden request from an untrusted IP",
+			trustedSubnet: "192.168.1.0/24",
+			xRealIP:       "10.0.0.1",
+			setupStorage:  func(s *storage2.MockStorage) {},
+			want: want{
+				code: http.StatusForbidden,
+				body: "Forbidden\n",
+			},
+		},
+		{
+			name:          "Forbidden request when trusted_subnet is not configured",
+			trustedSubnet: "",
+			xRealIP:       "192.168.1.100",
+			setupStorage:  func(s *storage2.MockStorage) {},
+			want: want{
+				code: http.StatusForbidden,
+				body: "Forbidden\n",
+			},
+		},
+
+		{
+			name:          "Forbidden request without the X-Real-IP header",
+			trustedSubnet: "192.168.1.0/24",
+			xRealIP:       "",
+			setupStorage:  func(s *storage2.MockStorage) {},
+			want: want{
+				code: http.StatusForbidden,
+				body: "Forbidden\n",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage := storage2.NewMockStorage()
+			tt.setupStorage(mockStorage)
+			cfg := &config.Config{
+				TrustedSubnet: tt.trustedSubnet,
+			}
+			server, err := NewServer(mockStorage, cfg, nil)
+			require.NoError(t, err)
+			req := httptest.NewRequest(http.MethodGet, "/api/internal/stats", nil)
+			if tt.xRealIP != "" {
+				req.Header.Set("X-Real-IP", tt.xRealIP)
+			}
+			rr := httptest.NewRecorder()
+			server.Router.ServeHTTP(rr, req)
+			assert.Equal(t, tt.want.code, rr.Code)
+			if tt.want.code == http.StatusOK {
+				assert.JSONEq(t, tt.want.body, rr.Body.String())
+			} else {
+				assert.Equal(t, tt.want.body, rr.Body.String())
 			}
 		})
 	}

@@ -89,3 +89,19 @@ func (m *MockStorage) DeleteURLs(shortURLs []string, userID string) error {
 	}
 	return nil
 }
+
+// GetURLCount retrieves the total number of URLs.
+func (m *MockStorage) GetURLCount() (int, error) {
+	return len(m.data), nil
+}
+
+// GetUserCount retrieves the total number of users.
+func (m *MockStorage) GetUserCount() (int, error) {
+	users := make(map[string]struct{})
+	for _, data := range m.data {
+		if data.UserID != "" {
+			users[data.UserID] = struct{}{}
+		}
+	}
+	return len(users), nil
+}

@@ -39,7 +39,7 @@ func main() {
 		defer storageInstance.DB.Close()
 	}
 
-	srv, err := server.NewServer(storageInstance.Storage, cfg.BaseShortURL, storageInstance.DB)
+	srv, err := server.NewServer(storageInstance.Storage, cfg, storageInstance.DB)
 	if err != nil {
 		log.Fatalf("Failed to create new server: %v", err)
 	}

@@ -48,4 +48,10 @@ type Storage interface {
 	// DeleteURLs marks multiple URLs as deleted.
 	// Thread-safe: Yes
 	DeleteURLs(shortURLs []string, userID string) error
+	// GetURLCount retrieves the total number of URLs.
+	// Thread-safe: Yes
+	GetURLCount() (int, error)
+	// GetUserCount retrieves the total number of users.
+	// Thread-safe: Yes
+	GetUserCount() (int, error)
 }
