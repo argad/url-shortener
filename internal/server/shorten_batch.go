@@ -1,180 +1,72 @@
 package server
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
-	"net/url"
 
 	"github.com/argad/url-shortener/internal/middleware"
-	"github.com/argad/url-shortener/internal/storage"
-	json "github.com/json-iterator/go"
+	"github.com/argad/url-shortener/internal/service"
 	"go.uber.org/zap"
 )
 
-// handleAPIShortenBatch handles the batch creation of new shortened URLs from a JSON request.
-// It decodes the JSON request containing a list of URLs, generates unique IDs for each,
-// saves them to the storage in a batch, and returns a list of shortened URLs in a JSON response.
+// BatchURLRequest defines the structure for a single URL in a batch shortening request.
+type BatchURLRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+// BatchURLResponse defines the structure for a single URL in the response of a batch shortening request.
+type BatchURLResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+// handleAPIShortenBatch handles POST /api/shorten/batch requests
 func (s *Server) handleAPIShortenBatch(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.GetUserID(r.Context())
-
-	// Validate
-	if !s.isBatchRequestValid(w, r) {
+	var batchReq []BatchURLRequest
+	if err := json.NewDecoder(r.Body).Decode(&batchReq); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	// Parse
-	req, ok := s.getBatchRequest(w, r)
-	if !ok {
+	if len(batchReq) == 0 {
+		http.Error(w, "Empty batch request", http.StatusBadRequest)
 		return
 	}
 
-	// Prepare
-	batchData, ok := s.getBatchData(w, req)
-	if !ok {
+	userID, ok := middleware.GetUserID(r.Context())
+	if !ok || userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	// Save
-	results, ok := s.saveBatch(w, batchData, userID)
-	if !ok {
-		return
-	}
-
-	// Respond
-	s.respondWithBatch(w, results)
-}
-
-func (s *Server) isBatchRequestValid(w http.ResponseWriter, r *http.Request) bool {
-	if err := s.validateBatchRequestMethod(r); err != nil {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return false
-	}
-	return true
-}
-
-func (s *Server) getBatchRequest(w http.ResponseWriter, r *http.Request) ([]BatchURLRequest, bool) {
-	req, err := s.parseBatchRequest(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return nil, false
-	}
-	return req, true
-}
-
-func (s *Server) getBatchData(w http.ResponseWriter, req []BatchURLRequest) ([]storage.BatchURLData, bool) {
-	batchData, err := s.prepareBatchData(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return nil, false
-	}
-	return batchData, true
-}
-
-func (s *Server) saveBatch(w http.ResponseWriter, batchData []storage.BatchURLData, userID string) ([]storage.BatchURLData, bool) {
-	results, err := s.storage.SaveBatch(batchData, userID)
-	if err != nil {
-		s.logger.Error("Failed to save batch URLs", zap.Error(err))
-		http.Error(w, "Error saving URLs", http.StatusInternalServerError)
-		return nil, false
-	}
-	return results, true
-}
-
-func (s *Server) respondWithBatch(w http.ResponseWriter, results []storage.BatchURLData) {
-	if err := s.writeBatchResponse(w, results); err != nil {
-		s.logger.Error("Failed to write batch response", zap.Error(err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-	}
-}
-
-func (s *Server) validateBatchRequestMethod(r *http.Request) error {
-	if r.Method != http.MethodPost {
-		return fmt.Errorf("method %s not allowed", r.Method)
-	}
-	return nil
-}
-
-func (s *Server) parseBatchRequest(r *http.Request) ([]BatchURLRequest, error) {
-	var req []BatchURLRequest
-	decoder := json.NewDecoder(r.Body)
-	defer r.Body.Close()
-
-	if err := decoder.Decode(&req); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
-	}
-
-	if len(req) == 0 {
-		return nil, fmt.Errorf("empty batch")
-	}
-
-	return req, nil
-}
-
-func (s *Server) prepareBatchData(req []BatchURLRequest) ([]storage.BatchURLData, error) {
-	batchData := make([]storage.BatchURLData, len(req))
-
-	for i, item := range req {
-		if err := s.validateBatchItem(item); err != nil {
-			return nil, fmt.Errorf("invalid item at index %d: %w", i, err)
-		}
-
-		batchData[i] = storage.BatchURLData{
-			CorrelationID: item.CorrelationID,
-			OriginalURL:   item.OriginalURL,
-			ShortURL:      generateID(),
+	// Convert HTTP request to service format
+	items := make([]service.BatchItem, len(batchReq))
+	for i, req := range batchReq {
+		items[i] = service.BatchItem{
+			CorrelationID: req.CorrelationID,
+			OriginalURL:   req.OriginalURL,
 		}
 	}
 
-	return batchData, nil
-}
-
-func (s *Server) validateBatchItem(item BatchURLRequest) error {
-	if item.OriginalURL == "" {
-		return fmt.Errorf("URL cannot be empty")
-	}
-
-	if item.CorrelationID == "" {
-		return fmt.Errorf("correlation ID cannot be empty")
-	}
-
-	return nil
-}
-
-func (s *Server) writeBatchResponse(w http.ResponseWriter, results []storage.BatchURLData) error {
-	resp, err := s.buildBatchResponse(results)
+	// Use URLService
+	results, err := s.urlService.ShortenURLBatch(userID, items)
 	if err != nil {
-		return fmt.Errorf("failed to build batch response: %w", err)
+		s.logger.Error("Failed to shorten batch", zap.Error(err))
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Convert service results to HTTP response format
+	response := make([]BatchURLResponse, len(results))
+	for i, result := range results {
+		response[i] = BatchURLResponse{
+			CorrelationID: result.CorrelationID,
+			ShortURL:      result.ShortURL,
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		return fmt.Errorf("failed to encode batch response: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Server) buildBatchResponse(results []storage.BatchURLData) ([]BatchURLResponse, error) {
-	resp := make([]BatchURLResponse, len(results))
-
-	for i, result := range results {
-		shortURL, err := url.JoinPath(s.baseURL, result.ShortURL)
-		if err != nil {
-			s.logger.Error("Failed to join URL path for batch response",
-				zap.String("base_url", s.baseURL),
-				zap.String("short_url", result.ShortURL),
-				zap.Error(err),
-			)
-			return nil, fmt.Errorf("failed to join URL path: %w", err)
-		}
-
-		resp[i] = BatchURLResponse{
-			CorrelationID: result.CorrelationID,
-			ShortURL:      shortURL,
-		}
-	}
-
-	return resp, nil
+	json.NewEncoder(w).Encode(response)
 }

@@ -1,0 +1,111 @@
+
+syntax = "proto3";
+
+package shortener;
+
+option go_package = "github.com/argad/url-shortener/internal/grpc/pb";
+
+// ShortenerService provides URL shortening functionality via gRPC
+service ShortenerService {
+  // ShortenURL creates a shortened URL from a full URL
+  rpc ShortenURL(ShortenURLRequest) returns (ShortenURLResponse);
+
+  // ShortenURLBatch creates multiple shortened URLs in a single request
+  rpc ShortenURLBatch(ShortenURLBatchRequest) returns (ShortenURLBatchResponse);
+
+  // GetOriginalURL retrieves the original URL by short code
+  rpc GetOriginalURL(GetOriginalURLRequest) returns (GetOriginalURLResponse);
+
+  // GetUserURLs retrieves all URLs created by the authenticated user
+  rpc GetUserURLs(GetUserURLsRequest) returns (GetUserURLsResponse);
+
+  // DeleteURLs marks URLs as deleted for the authenticated user
+  rpc DeleteURLs(DeleteURLsRequest) returns (DeleteURLsResponse);
+
+  // GetStats returns statistics about URLs and users (admin only)
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+}
+
+// ShortenURLRequest contains the URL to be shortened
+message ShortenURLRequest {
+  string url = 1;
+  string user_id = 2;
+}
+
+// ShortenURLResponse contains the shortened URL
+message ShortenURLResponse {
+  string short_url = 1;
+  bool already_exists = 2;
+}
+
+// BatchItem represents a single URL to be shortened with a correlation ID
+message BatchItem {
+  string correlation_id = 1;
+  string original_url = 2;
+}
+
+// ShortenURLBatchRequest contains multiple URLs to be shortened
+message ShortenURLBatchRequest {
+  repeated BatchItem items = 1;
+  string user_id = 2;
+}
+
+// BatchResponseItem represents a single shortened URL result
+message BatchResponseItem {
+  string correlation_id = 1;
+  string short_url = 2;
+}
+
+// ShortenURLBatchResponse contains results for all shortened URLs
+message ShortenURLBatchResponse {
+  repeated BatchResponseItem items = 1;
+}
+
+// GetOriginalURLRequest contains the short code to resolve
+message GetOriginalURLRequest {
+  string short_code = 1;
+}
+
+// GetOriginalURLResponse contains the original URL
+message GetOriginalURLResponse {
+  string original_url = 1;
+  bool is_deleted = 2;
+}
+
+// GetUserURLsRequest requests all URLs for a user
+message GetUserURLsRequest {
+  string user_id = 1;
+}
+
+// UserURL represents a single URL pair
+message UserURL {
+  string short_url = 1;
+  string original_url = 2;
+}
+
+// GetUserURLsResponse contains all user URLs
+message GetUserURLsResponse {
+  repeated UserURL urls = 1;
+}
+
+// DeleteURLsRequest contains short codes to delete
+message DeleteURLsRequest {
+  repeated string short_codes = 1;
+  string user_id = 2;
+}
+
+// DeleteURLsResponse confirms the deletion
+message DeleteURLsResponse {
+  bool success = 1;
+}
+
+// GetStatsRequest requests statistics (requires trusted network)
+message GetStatsRequest {
+  // Empty - authentication via interceptor/metadata
+}
+
+// GetStatsResponse contains statistics
+message GetStatsResponse {
+  int32 urls = 1;
+  int32 users = 2;
+}

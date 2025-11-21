@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v10"
 )
@@ -22,6 +23,15 @@ type Config struct {
 	AutocertDomain  string `env:"AUTOCERT_DOMAIN"`
 	AutocertDir     string `env:"AUTOCERT_DIR"`
 	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
+	// gRPC settings
+	GRPCEnabled bool   `json:"grpc_enabled" env:"GRPC_ENABLED"`
+	GRPCAddress string `json:"grpc_address" env:"GRPC_ADDRESS"`
+
+	// Timeouts (apply to both HTTP and gRPC)
+	ReadTimeout     time.Duration `json:"read_timeout" env:"READ_TIMEOUT"`
+	WriteTimeout    time.Duration `json:"write_timeout" env:"WRITE_TIMEOUT"`
+	IdleTimeout     time.Duration `json:"idle_timeout" env:"IDLE_TIMEOUT"`
+	ShutdownTimeout time.Duration `json:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT"`
 }
 
 // JSONConfig defines the structure of the JSON configuration file

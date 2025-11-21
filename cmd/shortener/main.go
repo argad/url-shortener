@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,9 +13,13 @@ import (
 
 	"github.com/argad/url-shortener/internal/config"
 	"github.com/argad/url-shortener/internal/factory"
+	grpcserver "github.com/argad/url-shortener/internal/grpc"
+	"github.com/argad/url-shortener/internal/grpc/pb"
 	"github.com/argad/url-shortener/internal/server"
+	"github.com/argad/url-shortener/internal/service"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -23,18 +28,18 @@ func main() {
 		log.Fatalf("Ошибка инициализации конфигурации: %v", err)
 	}
 
-	// TODO: put logger instance in config
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("Failed to create logger instance: %v", err)
 	}
+	defer logger.Sync()
+
 	sf := factory.NewStorageFactory(logger)
 	storageInstance, err := sf.CreateStorage(cfg)
 	if err != nil {
 		log.Fatalf("Failed to create storage: %v", err)
 	}
 
-	// close db if exist
 	if storageInstance.DB != nil {
 		defer storageInstance.DB.Close()
 	}
@@ -44,88 +49,128 @@ func main() {
 		log.Fatalf("Failed to create new server: %v", err)
 	}
 
-	// Create a channel to receive OS signals
+	// Create URLService for gRPC
+	urlService := service.NewURLService(storageInstance.Storage, cfg.BaseShortURL, logger)
+
+	// Start HTTP server in goroutine
+	httpServer := startHTTPServerAsync(cfg, srv, logger)
+
+	// Start gRPC server if enabled
+	var grpcSrv *grpc.Server
+	if cfg.GRPCEnabled {
+		grpcSrv = startGRPCServer(cfg, urlService, logger)
+	}
+
+	// Wait for interrupt signal
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	<-sigChan
 
-	// Create a context that will be canceled when a signal is received
-	ctx, cancel := context.WithCancel(context.Background())
+	log.Println("Shutting down servers...")
 
-	go func() {
-		<-sigChan
-		log.Println("Shutting down server...")
-		cancel()
-	}()
-
-	if cfg.EnableHTTPS {
-		startHTTPSServer(ctx, cfg, srv)
-	} else {
-		startHTTPServer(ctx, cfg, srv)
+	// Shutdown HTTP server
+	shutdownTimeout := 5 * time.Second
+	if cfg.ShutdownTimeout > 0 {
+		shutdownTimeout = cfg.ShutdownTimeout
 	}
 
-	log.Println("Server gracefully stopped")
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer shutdownCancel()
+
+	if httpServer != nil {
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			logger.Error("HTTP server shutdown error", zap.Error(err))
+		}
+	}
+
+	// Shutdown gRPC server
+	if grpcSrv != nil {
+		grpcSrv.GracefulStop()
+		logger.Info("gRPC server stopped")
+	}
+
+	log.Println("Servers gracefully stopped")
 }
 
-func startHTTPServer(ctx context.Context, cfg *config.Config, srv *server.Server) {
-	log.Printf("Starting HTTP server on %s", cfg.ServerAddress)
+func startHTTPServerAsync(cfg *config.Config, srv *server.Server, logger *zap.Logger) *http.Server {
+	var httpServer *http.Server
 
-	// Create the HTTP server
-	httpServer := &http.Server{
-		Addr:    cfg.ServerAddress,
-		Handler: srv.Router,
+	if cfg.EnableHTTPS {
+		httpServer = createHTTPSServer(cfg, srv, logger)
+	} else {
+		httpServer = &http.Server{
+			Addr:         cfg.ServerAddress,
+			Handler:      srv.Router,
+			ReadTimeout:  cfg.ReadTimeout,
+			WriteTimeout: cfg.WriteTimeout,
+			IdleTimeout:  cfg.IdleTimeout,
+		}
 	}
 
-	// Start HTTP server in a goroutine
 	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Failed to start HTTP server: %v", err)
+		logger.Info("Starting HTTP server", zap.String("address", cfg.ServerAddress))
+		var err error
+		if cfg.EnableHTTPS {
+			err = httpServer.ListenAndServeTLS("", "")
+		} else {
+			err = httpServer.ListenAndServe()
+		}
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Fatal("Failed to start HTTP server", zap.Error(err))
 		}
 	}()
 
-	// Wait for the context to be canceled
-	<-ctx.Done()
-
-	// Shutdown the server with a timeout
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer shutdownCancel()
-
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		log.Printf("HTTP server shutdown error: %v", err)
-	}
+	return httpServer
 }
 
-func startHTTPSServer(ctx context.Context, cfg *config.Config, srv *server.Server) {
-	log.Printf("Starting HTTPS server with autocert on %s for domain %s", cfg.ServerAddress, cfg.AutocertDomain)
+func createHTTPSServer(cfg *config.Config, srv *server.Server, logger *zap.Logger) *http.Server {
+	logger.Info("Configuring HTTPS with autocert",
+		zap.String("domain", cfg.AutocertDomain))
 
-	// Create autocert manager
 	m := &autocert.Manager{
 		Cache:      autocert.DirCache(cfg.AutocertDir),
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(cfg.AutocertDomain),
 	}
 
-	// Create the HTTPS server
-	httpsServer := &http.Server{
-		Addr:      cfg.ServerAddress,
-		Handler:   srv.Router,
-		TLSConfig: m.TLSConfig(),
+	return &http.Server{
+		Addr:         cfg.ServerAddress,
+		Handler:      srv.Router,
+		TLSConfig:    m.TLSConfig(),
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
+	}
+}
+
+func startGRPCServer(cfg *config.Config, urlService *service.URLService, logger *zap.Logger) *grpc.Server {
+	listener, err := net.Listen("tcp", cfg.GRPCAddress)
+	if err != nil {
+		logger.Fatal("Failed to listen for gRPC", zap.Error(err))
 	}
 
-	// Start HTTPS server in a goroutine
+	// Configure gRPC server options
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(grpcserver.NewAuthInterceptor(logger).Unary()),
+	}
+
+	// Add timeouts if configured
+	if cfg.ReadTimeout > 0 {
+		opts = append(opts, grpc.ConnectionTimeout(cfg.ReadTimeout))
+	}
+
+	grpcServer := grpc.NewServer(opts...)
+
+	// Register service
+	grpcService := grpcserver.NewServer(urlService, logger)
+	pb.RegisterShortenerServiceServer(grpcServer, grpcService)
+
 	go func() {
-		if err := httpsServer.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Failed to start HTTPS server: %v", err)
+		logger.Info("Starting gRPC server", zap.String("address", cfg.GRPCAddress))
+		if err := grpcServer.Serve(listener); err != nil {
+			logger.Fatal("gRPC server error", zap.Error(err))
 		}
 	}()
 
-	// Wait for the context to be canceled
-	<-ctx.Done()
-
-	// Shutdown the server with a timeout
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer shutdownCancel()
-
-	if err := httpsServer.Shutdown(shutdownCtx); err != nil {
-		log.Printf("HTTPS server shutdown error: %v", err)
-	}
+	return grpcServer
 }
